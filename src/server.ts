@@ -33,6 +33,8 @@ const getCorsOrigins = (): string[] => {
       'https://vite-frontend-remlic.vercel.app',
       'https://firearmstudio.com',
       'https://www.firearmstudio.com',
+      'https://remlic.co.za',
+      'https://www.remlic.co.za',
     ];
   }
 
