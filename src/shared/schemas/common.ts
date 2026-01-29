@@ -13,6 +13,10 @@ export function createUuidSchema(entityName: string): z.ZodString {
 
 export const sortOrderSchema = z.enum(['asc', 'desc']);
 
+export const stringBooleanSchema = z
+  .union([z.boolean(), z.literal('true'), z.literal('false')])
+  .transform((val) => val === true || val === 'true');
+
 export function withAtLeastOneField<T extends z.ZodRawShape>(
   schema: z.ZodObject<T>,
 ): z.ZodEffects<z.ZodObject<T>> {

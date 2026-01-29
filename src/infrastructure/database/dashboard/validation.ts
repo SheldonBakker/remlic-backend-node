@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import type { IDashboardFilters } from './types.js';
-import { sortOrderSchema } from '../../../shared/schemas/common.js';
+import { sortOrderSchema, stringBooleanSchema } from '../../../shared/schemas/common.js';
 import { validateOrThrow } from '../../../shared/utils/validationHelper.js';
 
 const dashboardFiltersSchema = z.object({
@@ -8,7 +8,7 @@ const dashboardFiltersSchema = z.object({
     .optional(),
   sort_order: sortOrderSchema.optional(),
   days_ahead: z.coerce.number().int().min(1).max(365),
-  include_expired: z.coerce.boolean(),
+  include_expired: stringBooleanSchema,
 }).passthrough();
 
 export class DashboardValidation {
