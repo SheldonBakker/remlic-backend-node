@@ -10,6 +10,12 @@ export interface IConfig {
     serviceRoleKey: string;
     jwtSecret: string;
   };
+  database: {
+    url: string;
+    maxConnections: number;
+    idleTimeout: number;
+    connectTimeout: number;
+  };
   email: {
     apiKey: string;
     apiRevision: string;
@@ -37,6 +43,12 @@ class ConfigService {
         serviceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY ?? '',
         jwtSecret: process.env.SUPABASE_JWT_SECRET ?? '',
       },
+      database: {
+        url: process.env.DATABASE_URL ?? '',
+        maxConnections: parseInt(process.env.DATABASE_MAX_CONNECTIONS ?? '10', 10),
+        idleTimeout: parseInt(process.env.DATABASE_IDLE_TIMEOUT ?? '20', 10),
+        connectTimeout: parseInt(process.env.DATABASE_CONNECT_TIMEOUT ?? '10', 10),
+      },
       email: {
         apiKey: process.env.KLAVIYO_PRIVATE_API_KEY ?? '',
         apiRevision: process.env.KLAVIYO_API_REVISION ?? '2024-10-15',
@@ -62,6 +74,10 @@ class ConfigService {
 
     if (!cfg.supabase.jwtSecret) {
       errors.push('SUPABASE_JWT_SECRET is required');
+    }
+
+    if (!cfg.database.url) {
+      errors.push('DATABASE_URL is required');
     }
 
     if (errors.length > 0) {

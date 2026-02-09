@@ -1,5 +1,7 @@
 import type { ICertificate, ICreateCertificateData, IUpdateCertificateData, ICertificatesFilters } from './types.js';
-import { supabaseAdmin } from '../supabaseClient.js';
+import db from '../drizzleClient.js';
+import { certificates } from '../schema/index.js';
+import { eq, or, lt, and, desc, asc, ilike, type SQL } from 'drizzle-orm';
 import { HttpError } from '../../../shared/types/errors/appError.js';
 import { HTTP_STATUS } from '../../../shared/constants/httpStatus.js';
 import { Logger } from '../../../shared/utils/logger.js';
@@ -12,135 +14,171 @@ export default class CertificatesService {
     params: ICursorParams,
     filters: ICertificatesFilters = {},
   ): Promise<IPaginatedResult<ICertificate>> {
-    const cursor = PaginationUtil.decodeCursor(params.cursor);
+    try {
+      const cursor = PaginationUtil.decodeCursor(params.cursor);
 
-    let query = supabaseAdmin
-      .from('certificates')
-      .select('*')
-      .eq('profile_id', userId);
+      const conditions: SQL[] = [eq(certificates.profile_id, userId)];
 
-    if (filters.certificate_number) {
-      query = query.ilike('certificate_number', filters.certificate_number);
-    }
+      if (filters.certificate_number) {
+        conditions.push(ilike(certificates.certificate_number, filters.certificate_number));
+      }
 
-    if (filters.sort_by) {
-      const ascending = filters.sort_order === 'asc';
-      query = query.order(filters.sort_by, { ascending });
-    }
+      if (cursor) {
+        const cursorCondition = or(
+          lt(certificates.created_at, new Date(cursor.created_at)),
+          and(eq(certificates.created_at, new Date(cursor.created_at)), lt(certificates.id, cursor.id)),
+        );
+        if (cursorCondition) {
+          conditions.push(cursorCondition);
+        }
+      }
 
-    if (cursor) {
-      query = query.or(`created_at.lt.${cursor.created_at},and(created_at.eq.${cursor.created_at},id.lt.${cursor.id})`);
-    }
+      const orderClauses = [];
+      if (filters.sort_by) {
+        const col = certificates[filters.sort_by as keyof typeof certificates.$inferSelect];
+        orderClauses.push(filters.sort_order === 'asc' ? asc(col as unknown as SQL) : desc(col as unknown as SQL));
+      }
+      orderClauses.push(desc(certificates.created_at), desc(certificates.id));
 
-    query = query
-      .order('created_at', { ascending: false })
-      .order('id', { ascending: false })
-      .limit(params.limit);
+      const data = await db
+        .select()
+        .from(certificates)
+        .where(and(...conditions))
+        .orderBy(...orderClauses)
+        .limit(params.limit);
 
-    const { data, error } = await query;
+      const items = data.map((row) => CertificatesService.mapToCertificate(row));
+      const pagination = PaginationUtil.buildPagination(items, params.limit);
 
-    if (error) {
-      Logger.error('Failed to fetch certificates', 'CERTIFICATES_SERVICE', { error: error.message });
+      return { items, pagination };
+    } catch (error) {
+      if (error instanceof HttpError) {
+        throw error;
+      }
+      Logger.error('Failed to fetch certificates', 'CERTIFICATES_SERVICE', { error: (error as Error).message });
       throw new HttpError(HTTP_STATUS.INTERNAL_SERVER_ERROR, 'Failed to fetch certificates');
     }
-
-    const items = data as ICertificate[];
-    const pagination = PaginationUtil.buildPagination(items, params.limit);
-
-    return { items, pagination };
   }
 
   public static async getCertificateById(certificateId: string, userId: string): Promise<ICertificate> {
-    const { data, error } = await supabaseAdmin
-      .from('certificates')
-      .select('*')
-      .eq('id', certificateId)
-      .eq('profile_id', userId)
-      .single();
+    try {
+      const [data] = await db
+        .select()
+        .from(certificates)
+        .where(and(eq(certificates.id, certificateId), eq(certificates.profile_id, userId)));
 
-    if (error || !data) {
-      Logger.warn('Certificate not found', 'CERTIFICATES_SERVICE', { certificateId, userId });
-      throw new HttpError(HTTP_STATUS.NOT_FOUND, 'Certificate not found');
+      if (!data) {
+        Logger.warn('Certificate not found', 'CERTIFICATES_SERVICE', { certificateId, userId });
+        throw new HttpError(HTTP_STATUS.NOT_FOUND, 'Certificate not found');
+      }
+
+      return CertificatesService.mapToCertificate(data);
+    } catch (error) {
+      if (error instanceof HttpError) {
+        throw error;
+      }
+      Logger.error('Failed to fetch certificate', 'CERTIFICATES_SERVICE', { error: (error as Error).message });
+      throw new HttpError(HTTP_STATUS.INTERNAL_SERVER_ERROR, 'Failed to fetch certificate');
     }
-
-    return data as ICertificate;
   }
 
   public static async createCertificate(data: ICreateCertificateData): Promise<ICertificate> {
-    const { data: certificate, error } = await supabaseAdmin
-      .from('certificates')
-      .insert({
-        profile_id: data.profile_id,
-        type: data.type,
-        first_name: data.first_name,
-        last_name: data.last_name,
-        certificate_number: data.certificate_number,
-        expiry_date: data.expiry_date,
-      })
-      .select()
-      .single();
+    try {
+      const [certificate] = await db
+        .insert(certificates)
+        .values({
+          profile_id: data.profile_id,
+          type: data.type,
+          first_name: data.first_name,
+          last_name: data.last_name,
+          certificate_number: data.certificate_number,
+          expiry_date: data.expiry_date,
+        })
+        .returning();
 
-    if (error) {
-      Logger.error('Failed to create certificate', 'CERTIFICATES_SERVICE', { error: error.message });
+      if (!certificate) {
+        throw new HttpError(HTTP_STATUS.INTERNAL_SERVER_ERROR, 'Failed to create certificate');
+      }
+
+      return CertificatesService.mapToCertificate(certificate);
+    } catch (error) {
+      if (error instanceof HttpError) {
+        throw error;
+      }
+      Logger.error('Failed to create certificate', 'CERTIFICATES_SERVICE', { error: (error as Error).message });
       throw new HttpError(HTTP_STATUS.INTERNAL_SERVER_ERROR, 'Failed to create certificate');
     }
-
-    return certificate as ICertificate;
   }
 
   public static async updateCertificate(data: IUpdateCertificateData): Promise<ICertificate> {
-    const { error: findError } = await supabaseAdmin
-      .from('certificates')
-      .select('id')
-      .eq('id', data.id)
-      .eq('profile_id', data.profile_id)
-      .single();
+    try {
+      const [existing] = await db
+        .select({ id: certificates.id })
+        .from(certificates)
+        .where(and(eq(certificates.id, data.id), eq(certificates.profile_id, data.profile_id)));
 
-    if (findError) {
-      Logger.warn('Certificate not found for update', 'CERTIFICATES_SERVICE', { certificateId: data.id, userId: data.profile_id });
-      throw new HttpError(HTTP_STATUS.NOT_FOUND, 'Certificate not found');
-    }
+      if (!existing) {
+        Logger.warn('Certificate not found for update', 'CERTIFICATES_SERVICE', { certificateId: data.id, userId: data.profile_id });
+        throw new HttpError(HTTP_STATUS.NOT_FOUND, 'Certificate not found');
+      }
 
-    const updateData = buildPartialUpdate(data, ['type', 'first_name', 'last_name', 'certificate_number', 'expiry_date']);
+      const updateData = buildPartialUpdate(data, ['type', 'first_name', 'last_name', 'certificate_number', 'expiry_date']);
 
-    const { data: certificate, error: updateError } = await supabaseAdmin
-      .from('certificates')
-      .update(updateData)
-      .eq('id', data.id)
-      .eq('profile_id', data.profile_id)
-      .select()
-      .single();
+      const [certificate] = await db
+        .update(certificates)
+        .set(updateData)
+        .where(and(eq(certificates.id, data.id), eq(certificates.profile_id, data.profile_id)))
+        .returning();
 
-    if (updateError) {
-      Logger.error('Failed to update certificate', 'CERTIFICATES_SERVICE', { error: updateError.message });
+      if (!certificate) {
+        throw new HttpError(HTTP_STATUS.INTERNAL_SERVER_ERROR, 'Failed to update certificate');
+      }
+
+      return CertificatesService.mapToCertificate(certificate);
+    } catch (error) {
+      if (error instanceof HttpError) {
+        throw error;
+      }
+      Logger.error('Failed to update certificate', 'CERTIFICATES_SERVICE', { error: (error as Error).message });
       throw new HttpError(HTTP_STATUS.INTERNAL_SERVER_ERROR, 'Failed to update certificate');
     }
-
-    return certificate as ICertificate;
   }
 
   public static async deleteCertificate(certificateId: string, userId: string): Promise<void> {
-    const { error: findError } = await supabaseAdmin
-      .from('certificates')
-      .select('id')
-      .eq('id', certificateId)
-      .eq('profile_id', userId)
-      .single();
+    try {
+      const [existing] = await db
+        .select({ id: certificates.id })
+        .from(certificates)
+        .where(and(eq(certificates.id, certificateId), eq(certificates.profile_id, userId)));
 
-    if (findError) {
-      Logger.warn('Certificate not found for deletion', 'CERTIFICATES_SERVICE', { certificateId, userId });
-      throw new HttpError(HTTP_STATUS.NOT_FOUND, 'Certificate not found');
-    }
+      if (!existing) {
+        Logger.warn('Certificate not found for deletion', 'CERTIFICATES_SERVICE', { certificateId, userId });
+        throw new HttpError(HTTP_STATUS.NOT_FOUND, 'Certificate not found');
+      }
 
-    const { error: deleteError } = await supabaseAdmin
-      .from('certificates')
-      .delete()
-      .eq('id', certificateId)
-      .eq('profile_id', userId);
-
-    if (deleteError) {
-      Logger.error('Failed to delete certificate', 'CERTIFICATES_SERVICE', { error: deleteError.message });
+      await db
+        .delete(certificates)
+        .where(and(eq(certificates.id, certificateId), eq(certificates.profile_id, userId)));
+    } catch (error) {
+      if (error instanceof HttpError) {
+        throw error;
+      }
+      Logger.error('Failed to delete certificate', 'CERTIFICATES_SERVICE', { error: (error as Error).message });
       throw new HttpError(HTTP_STATUS.INTERNAL_SERVER_ERROR, 'Failed to delete certificate');
     }
+  }
+
+  private static mapToCertificate(row: typeof certificates.$inferSelect): ICertificate {
+    return {
+      id: row.id,
+      profile_id: row.profile_id,
+      type: row.type,
+      first_name: row.first_name,
+      last_name: row.last_name,
+      certificate_number: row.certificate_number,
+      expiry_date: row.expiry_date,
+      created_at: row.created_at.toISOString(),
+      updated_at: row.updated_at.toISOString(),
+    };
   }
 }

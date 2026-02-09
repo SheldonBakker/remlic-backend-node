@@ -104,7 +104,6 @@ export interface IPaystackDisableSubscriptionResponse {
   message: string;
 }
 
-// Webhook Event Types
 export type PaystackWebhookEvent =
   | 'subscription.create'
   | 'subscription.disable'
@@ -150,7 +149,6 @@ export interface IActivateSubscriptionData {
   current_period_end: string;
 }
 
-// Refund types
 export interface IPaystackRefundRequest {
   transaction: string;
   amount?: number;

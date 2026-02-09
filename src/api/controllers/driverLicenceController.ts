@@ -6,8 +6,6 @@ import { HttpError } from '../../shared/types/errors/appError.js';
 import DriverLicenceService from '../../infrastructure/database/driver_licences/driverLicenceMethods.js';
 import { DriverLicenceValidation } from '../../infrastructure/database/driver_licences/validation.js';
 import { PaginationUtil } from '../../shared/utils/pagination.js';
-import { SADLDecoder } from '../../shared/utils/sadl/sadlDecoder.js';
-import type { IDecodedSADL } from '../../shared/utils/sadl/sadlTypes.js';
 
 export default class DriverLicenceController {
   public static getDriverLicences = async (
@@ -99,75 +97,4 @@ export default class DriverLicenceController {
     ResponseUtil.success(res, { message: 'Driver licence deleted successfully' }, HTTP_STATUS.OK);
   };
 
-  public static decodeDriverLicence = async (
-    req: AuthenticatedRequest,
-    res: Response,
-    _next: NextFunction,
-  ): Promise<void> => {
-    const userId = req.user?.id;
-
-    if (!userId) {
-      throw new HttpError(HTTP_STATUS.UNAUTHORIZED, 'User not authenticated');
-    }
-
-    const { barcode_data } = DriverLicenceValidation.validateDecodeRequest(req.body);
-    const decoded: IDecodedSADL = SADLDecoder.decode(barcode_data);
-
-    const { licence: existingLicence } = await DriverLicenceService.findByIdNumber(
-      userId,
-      decoded.identityNumber,
-    );
-
-    const decodedDataJson = decoded as unknown as Record<string, unknown>;
-
-    if (existingLicence) {
-      const updatedLicence = await DriverLicenceService.updateFromDecode({
-        id: existingLicence.id,
-        profile_id: userId,
-        surname: decoded.surname,
-        initials: decoded.initials,
-        expiry_date: decoded.licenceExpiryDate,
-        licence_number: decoded.licenceNumber,
-        licence_codes: decoded.licenceCodes,
-        issue_date: decoded.licenceIssueDate,
-        date_of_birth: decoded.dateOfBirth,
-        gender: decoded.gender,
-        decoded_data: decodedDataJson,
-      });
-
-      ResponseUtil.success(
-        res,
-        {
-          decoded,
-          driver_licence: updatedLicence,
-          is_new: false,
-        },
-        HTTP_STATUS.OK,
-      );
-    } else {
-      const newLicence = await DriverLicenceService.createFromDecode({
-        profile_id: userId,
-        surname: decoded.surname,
-        initials: decoded.initials,
-        id_number: decoded.identityNumber,
-        expiry_date: decoded.licenceExpiryDate,
-        licence_number: decoded.licenceNumber,
-        licence_codes: decoded.licenceCodes,
-        issue_date: decoded.licenceIssueDate,
-        date_of_birth: decoded.dateOfBirth,
-        gender: decoded.gender,
-        decoded_data: decodedDataJson,
-      });
-
-      ResponseUtil.success(
-        res,
-        {
-          decoded,
-          driver_licence: newLicence,
-          is_new: true,
-        },
-        HTTP_STATUS.CREATED,
-      );
-    }
-  };
 }

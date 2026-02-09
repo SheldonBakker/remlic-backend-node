@@ -290,45 +290,6 @@ router.post('/', requireRole(UserRole.USER), requireSubscription, requestHandler
 
 /**
  * @swagger
- * /driver-licences/decode:
- *   post:
- *     summary: Decode a South African Driver's Licence barcode
- *     description: |
- *       Accepts base64-encoded PDF417 barcode data from a South African Driver's Licence (SADL),
- *       decrypts and parses the barcode, then creates or updates a driver licence record.
- *       If a licence with the same ID number already exists for the authenticated user, it will be updated.
- *       Otherwise, a new licence record will be created.
- *       The barcode data must be exactly 720 bytes when base64 decoded.
- *     tags:
- *       - Driver Licences
- *     security:
- *       - bearerAuth: []
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - barcode_data
- *             properties:
- *               barcode_data:
- *                 type: string
- *                 description: Base64-encoded PDF417 barcode data (720 bytes when decoded)
- *     responses:
- *       201:
- *         description: New driver licence created from decoded barcode
- *       200:
- *         description: Existing driver licence updated from decoded barcode
- *       400:
- *         description: Bad request - Invalid barcode data or decryption failed
- *       401:
- *         description: Unauthorized - Invalid or missing token
- */
-router.post('/decode', requireRole(UserRole.USER), requireSubscription, requestHandler(DriverLicenceController.decodeDriverLicence));
-
-/**
- * @swagger
  * /driver-licences/{id}:
  *   patch:
  *     summary: Update a driver licence

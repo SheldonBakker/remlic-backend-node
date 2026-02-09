@@ -3,11 +3,11 @@ import { HttpError } from '../types/errors/appError.js';
 import { HTTP_STATUS } from '../constants/httpStatus.js';
 import { formatValidationError } from './validationFormatter.js';
 
-export function validateOrThrow<T extends z.ZodTypeAny>(
+export function validateOrThrow<T extends z.ZodType<unknown, z.ZodTypeDef, unknown>>(
   schema: T,
   data: unknown,
   errorMessage = 'Validation failed',
-): z.infer<T> {
+): z.output<T> {
   const result = schema.safeParse(data);
   if (!result.success) {
     const errors = formatValidationError(result.error);
@@ -17,8 +17,7 @@ export function validateOrThrow<T extends z.ZodTypeAny>(
       errors,
     );
   }
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-return
-  return result.data;
+  return result.data as z.output<T>;
 }
 
 export function validateIdOrThrow(

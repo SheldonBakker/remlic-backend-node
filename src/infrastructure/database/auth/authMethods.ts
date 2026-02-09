@@ -1,5 +1,8 @@
 import type { ISignupRequest, ISignupResponse, IProfile } from './types.js';
-import { supabase, supabaseAdmin } from '../supabaseClient.js';
+import { supabase } from '../supabaseClient.js';
+import db from '../drizzleClient.js';
+import { profiles } from '../schema/index.js';
+import { eq } from 'drizzle-orm';
 import { HttpError } from '../../../shared/types/errors/appError.js';
 import { HTTP_STATUS } from '../../../shared/constants/httpStatus.js';
 import { Logger } from '../../../shared/utils/logger.js';
@@ -34,17 +37,24 @@ export default class AuthService {
       throw new HttpError(HTTP_STATUS.INTERNAL_SERVER_ERROR, 'Failed to create user');
     }
 
-    const { error: profileError } = await supabaseAdmin
-      .from('profiles')
-      .upsert({
-        id: authData.user.id,
-        email,
-        phone,
-        role: 'User',
-      });
-
-    if (profileError) {
-      Logger.error('Failed to create profile', 'AUTH_SERVICE', { error: profileError.message });
+    try {
+      await db
+        .insert(profiles)
+        .values({
+          id: authData.user.id,
+          email,
+          phone,
+          role: 'User',
+        })
+        .onConflictDoUpdate({
+          target: profiles.id,
+          set: {
+            email,
+            phone,
+          },
+        });
+    } catch (error) {
+      Logger.error('Failed to create profile', 'AUTH_SERVICE', { error: (error as Error).message });
       throw new HttpError(HTTP_STATUS.INTERNAL_SERVER_ERROR, 'User created but profile creation failed');
     }
 
@@ -61,17 +71,32 @@ export default class AuthService {
   }
 
   public static async getProfileById(userId: string): Promise<IProfile | null> {
-    const { data, error } = await supabaseAdmin
-      .from('profiles')
-      .select('id, email, phone, role, created_at')
-      .eq('id', userId)
-      .single();
+    try {
+      const [data] = await db
+        .select({
+          id: profiles.id,
+          email: profiles.email,
+          phone: profiles.phone,
+          role: profiles.role,
+          created_at: profiles.created_at,
+        })
+        .from(profiles)
+        .where(eq(profiles.id, userId));
 
-    if (error) {
-      Logger.error('Failed to fetch profile', 'AUTH_SERVICE', { error: error.message });
+      if (!data) {
+        return null;
+      }
+
+      return {
+        id: data.id,
+        email: data.email,
+        phone: data.phone,
+        role: data.role as IProfile['role'],
+        created_at: data.created_at.toISOString(),
+      };
+    } catch (error) {
+      Logger.error('Failed to fetch profile', 'AUTH_SERVICE', { error: (error as Error).message });
       return null;
     }
-
-    return data as IProfile;
   }
 }

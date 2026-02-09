@@ -1,5 +1,7 @@
 import type { IFirearm, ICreateFirearmData, IUpdateFirearmData, IFirearmsFilters } from './types.js';
-import { supabaseAdmin } from '../supabaseClient.js';
+import db from '../drizzleClient.js';
+import { firearms } from '../schema/index.js';
+import { eq, or, lt, and, desc, asc, ilike, type SQL } from 'drizzle-orm';
 import { HttpError } from '../../../shared/types/errors/appError.js';
 import { HTTP_STATUS } from '../../../shared/constants/httpStatus.js';
 import { Logger } from '../../../shared/utils/logger.js';
@@ -12,136 +14,173 @@ export default class FirearmsService {
     params: ICursorParams,
     filters: IFirearmsFilters = {},
   ): Promise<IPaginatedResult<IFirearm>> {
-    const cursor = PaginationUtil.decodeCursor(params.cursor);
+    try {
+      const cursor = PaginationUtil.decodeCursor(params.cursor);
 
-    let query = supabaseAdmin
-      .from('firearms')
-      .select('*')
-      .eq('profile_id', userId);
+      const conditions: SQL[] = [eq(firearms.profile_id, userId)];
 
-    if (filters.serial_number) {
-      query = query.ilike('serial_number', filters.serial_number);
-    }
+      if (filters.serial_number) {
+        conditions.push(ilike(firearms.serial_number, filters.serial_number));
+      }
 
-    if (filters.sort_by) {
-      const ascending = filters.sort_order === 'asc';
-      query = query.order(filters.sort_by, { ascending });
-    }
+      if (cursor) {
+        const cursorCondition = or(
+          lt(firearms.created_at, new Date(cursor.created_at)),
+          and(eq(firearms.created_at, new Date(cursor.created_at)), lt(firearms.id, cursor.id)),
+        );
+        if (cursorCondition) {
+          conditions.push(cursorCondition);
+        }
+      }
 
-    if (cursor) {
-      query = query.or(`created_at.lt.${cursor.created_at},and(created_at.eq.${cursor.created_at},id.lt.${cursor.id})`);
-    }
+      const orderClauses = [];
+      if (filters.sort_by) {
+        const col = firearms[filters.sort_by as keyof typeof firearms.$inferSelect];
+        orderClauses.push(filters.sort_order === 'asc' ? asc(col as unknown as SQL) : desc(col as unknown as SQL));
+      }
+      orderClauses.push(desc(firearms.created_at), desc(firearms.id));
 
-    query = query
-      .order('created_at', { ascending: false })
-      .order('id', { ascending: false })
-      .limit(params.limit);
+      const data = await db
+        .select()
+        .from(firearms)
+        .where(and(...conditions))
+        .orderBy(...orderClauses)
+        .limit(params.limit);
 
-    const { data, error } = await query;
+      const items = data.map((row) => FirearmsService.mapToFirearm(row));
+      const pagination = PaginationUtil.buildPagination(items, params.limit);
 
-    if (error) {
-      Logger.error('Failed to fetch firearms', 'FIREARMS_SERVICE', { error: error.message });
+      return { items, pagination };
+    } catch (error) {
+      if (error instanceof HttpError) {
+        throw error;
+      }
+      Logger.error('Failed to fetch firearms', 'FIREARMS_SERVICE', { error: (error as Error).message });
       throw new HttpError(HTTP_STATUS.INTERNAL_SERVER_ERROR, 'Failed to fetch firearms');
     }
-
-    const items = data as IFirearm[];
-    const pagination = PaginationUtil.buildPagination(items, params.limit);
-
-    return { items, pagination };
   }
 
   public static async getFirearmById(firearmId: string, userId: string): Promise<IFirearm> {
-    const { data, error } = await supabaseAdmin
-      .from('firearms')
-      .select('*')
-      .eq('id', firearmId)
-      .eq('profile_id', userId)
-      .single();
+    try {
+      const [data] = await db
+        .select()
+        .from(firearms)
+        .where(and(eq(firearms.id, firearmId), eq(firearms.profile_id, userId)));
 
-    if (error || !data) {
-      Logger.warn('Firearm not found', 'FIREARMS_SERVICE', { firearmId, userId });
-      throw new HttpError(HTTP_STATUS.NOT_FOUND, 'Firearm not found');
+      if (!data) {
+        Logger.warn('Firearm not found', 'FIREARMS_SERVICE', { firearmId, userId });
+        throw new HttpError(HTTP_STATUS.NOT_FOUND, 'Firearm not found');
+      }
+
+      return FirearmsService.mapToFirearm(data);
+    } catch (error) {
+      if (error instanceof HttpError) {
+        throw error;
+      }
+      Logger.error('Failed to fetch firearm', 'FIREARMS_SERVICE', { error: (error as Error).message });
+      throw new HttpError(HTTP_STATUS.INTERNAL_SERVER_ERROR, 'Failed to fetch firearm');
     }
-
-    return data as IFirearm;
   }
 
   public static async createFirearm(data: ICreateFirearmData): Promise<IFirearm> {
-    const { data: firearm, error } = await supabaseAdmin
-      .from('firearms')
-      .insert({
-        profile_id: data.profile_id,
-        type: data.type,
-        make: data.make,
-        model: data.model,
-        caliber: data.caliber,
-        serial_number: data.serial_number,
-        expiry_date: data.expiry_date,
-      })
-      .select()
-      .single();
+    try {
+      const [firearm] = await db
+        .insert(firearms)
+        .values({
+          profile_id: data.profile_id,
+          type: data.type,
+          make: data.make,
+          model: data.model,
+          caliber: data.caliber,
+          serial_number: data.serial_number ?? null,
+          expiry_date: data.expiry_date,
+        })
+        .returning();
 
-    if (error) {
-      Logger.error('Failed to create firearm', 'FIREARMS_SERVICE', { error: error.message });
+      if (!firearm) {
+        throw new HttpError(HTTP_STATUS.INTERNAL_SERVER_ERROR, 'Failed to create firearm');
+      }
+
+      return FirearmsService.mapToFirearm(firearm);
+    } catch (error) {
+      if (error instanceof HttpError) {
+        throw error;
+      }
+      Logger.error('Failed to create firearm', 'FIREARMS_SERVICE', { error: (error as Error).message });
       throw new HttpError(HTTP_STATUS.INTERNAL_SERVER_ERROR, 'Failed to create firearm');
     }
-
-    return firearm as IFirearm;
   }
 
   public static async updateFirearm(data: IUpdateFirearmData): Promise<IFirearm> {
-    const { error: findError } = await supabaseAdmin
-      .from('firearms')
-      .select('id')
-      .eq('id', data.id)
-      .eq('profile_id', data.profile_id)
-      .single();
+    try {
+      const [existing] = await db
+        .select({ id: firearms.id })
+        .from(firearms)
+        .where(and(eq(firearms.id, data.id), eq(firearms.profile_id, data.profile_id)));
 
-    if (findError) {
-      Logger.warn('Firearm not found for update', 'FIREARMS_SERVICE', { firearmId: data.id, userId: data.profile_id });
-      throw new HttpError(HTTP_STATUS.NOT_FOUND, 'Firearm not found');
-    }
+      if (!existing) {
+        Logger.warn('Firearm not found for update', 'FIREARMS_SERVICE', { firearmId: data.id, userId: data.profile_id });
+        throw new HttpError(HTTP_STATUS.NOT_FOUND, 'Firearm not found');
+      }
 
-    const updateData = buildPartialUpdate(data, ['type', 'make', 'model', 'caliber', 'serial_number', 'expiry_date']);
+      const updateData = buildPartialUpdate(data, ['type', 'make', 'model', 'caliber', 'serial_number', 'expiry_date']);
 
-    const { data: firearm, error: updateError } = await supabaseAdmin
-      .from('firearms')
-      .update(updateData)
-      .eq('id', data.id)
-      .eq('profile_id', data.profile_id)
-      .select()
-      .single();
+      const [firearm] = await db
+        .update(firearms)
+        .set(updateData)
+        .where(and(eq(firearms.id, data.id), eq(firearms.profile_id, data.profile_id)))
+        .returning();
 
-    if (updateError) {
-      Logger.error('Failed to update firearm', 'FIREARMS_SERVICE', { error: updateError.message });
+      if (!firearm) {
+        throw new HttpError(HTTP_STATUS.INTERNAL_SERVER_ERROR, 'Failed to update firearm');
+      }
+
+      return FirearmsService.mapToFirearm(firearm);
+    } catch (error) {
+      if (error instanceof HttpError) {
+        throw error;
+      }
+      Logger.error('Failed to update firearm', 'FIREARMS_SERVICE', { error: (error as Error).message });
       throw new HttpError(HTTP_STATUS.INTERNAL_SERVER_ERROR, 'Failed to update firearm');
     }
-
-    return firearm as IFirearm;
   }
 
   public static async deleteFirearm(firearmId: string, userId: string): Promise<void> {
-    const { error: findError } = await supabaseAdmin
-      .from('firearms')
-      .select('id')
-      .eq('id', firearmId)
-      .eq('profile_id', userId)
-      .single();
+    try {
+      const [existing] = await db
+        .select({ id: firearms.id })
+        .from(firearms)
+        .where(and(eq(firearms.id, firearmId), eq(firearms.profile_id, userId)));
 
-    if (findError) {
-      Logger.warn('Firearm not found for deletion', 'FIREARMS_SERVICE', { firearmId, userId });
-      throw new HttpError(HTTP_STATUS.NOT_FOUND, 'Firearm not found');
-    }
+      if (!existing) {
+        Logger.warn('Firearm not found for deletion', 'FIREARMS_SERVICE', { firearmId, userId });
+        throw new HttpError(HTTP_STATUS.NOT_FOUND, 'Firearm not found');
+      }
 
-    const { error: deleteError } = await supabaseAdmin
-      .from('firearms')
-      .delete()
-      .eq('id', firearmId)
-      .eq('profile_id', userId);
-
-    if (deleteError) {
-      Logger.error('Failed to delete firearm', 'FIREARMS_SERVICE', { error: deleteError.message });
+      await db
+        .delete(firearms)
+        .where(and(eq(firearms.id, firearmId), eq(firearms.profile_id, userId)));
+    } catch (error) {
+      if (error instanceof HttpError) {
+        throw error;
+      }
+      Logger.error('Failed to delete firearm', 'FIREARMS_SERVICE', { error: (error as Error).message });
       throw new HttpError(HTTP_STATUS.INTERNAL_SERVER_ERROR, 'Failed to delete firearm');
     }
+  }
+
+  private static mapToFirearm(row: typeof firearms.$inferSelect): IFirearm {
+    return {
+      id: row.id,
+      profile_id: row.profile_id,
+      type: row.type,
+      make: row.make,
+      model: row.model,
+      caliber: row.caliber,
+      serial_number: row.serial_number,
+      expiry_date: row.expiry_date,
+      created_at: row.created_at.toISOString(),
+      updated_at: row.updated_at.toISOString(),
+    };
   }
 }

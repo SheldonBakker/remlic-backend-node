@@ -59,7 +59,7 @@ export function registerSubscriptionExpiryJob(): void {
     schedule: SCHEDULE,
     timezone: TIMEZONE,
     handler: async () => {
-      const result = await run();
+      await run();
     },
   });
 }

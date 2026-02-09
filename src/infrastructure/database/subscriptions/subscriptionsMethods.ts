@@ -7,209 +7,251 @@ import type {
   IUserPermissions,
   ICreateSubscriptionFromPaystack,
 } from './types.js';
-import { supabaseAdmin } from '../supabaseClient.js';
+import db from '../drizzleClient.js';
+import { appSubscriptions, appPackages, appPermissions, profiles } from '../schema/index.js';
+import { eq, or, lt, and, desc, lte, gte, inArray, type SQL } from 'drizzle-orm';
 import { HttpError } from '../../../shared/types/errors/appError.js';
 import { HTTP_STATUS } from '../../../shared/constants/httpStatus.js';
 import { Logger } from '../../../shared/utils/logger.js';
 import { PaginationUtil, type ICursorParams, type IPaginatedResult } from '../../../shared/utils/pagination.js';
 import { buildPartialUpdate } from '../../../shared/utils/updateBuilder.js';
 
+interface JoinedSubscriptionRow {
+  app_subscriptions: typeof appSubscriptions.$inferSelect;
+  app_packages: typeof appPackages.$inferSelect;
+  app_permissions: typeof appPermissions.$inferSelect;
+}
+
 export default class SubscriptionsService {
   public static async getSubscriptions(
     params: ICursorParams,
     filters: ISubscriptionsFilters = {},
   ): Promise<IPaginatedResult<ISubscriptionWithPackage>> {
-    const cursor = PaginationUtil.decodeCursor(params.cursor);
+    try {
+      const cursor = PaginationUtil.decodeCursor(params.cursor);
 
-    let query = supabaseAdmin
-      .from('app_subscriptions')
-      .select('*, app_packages(*, app_permissions(*))');
+      const conditions: SQL[] = [];
 
-    if (filters.status) {
-      query = query.eq('status', filters.status);
-    }
+      if (filters.status) {
+        conditions.push(eq(appSubscriptions.status, filters.status));
+      }
 
-    if (filters.profile_id) {
-      query = query.eq('profile_id', filters.profile_id);
-    }
+      if (filters.profile_id) {
+        conditions.push(eq(appSubscriptions.profile_id, filters.profile_id));
+      }
 
-    if (cursor) {
-      query = query.or(`created_at.lt.${cursor.created_at},and(created_at.eq.${cursor.created_at},id.lt.${cursor.id})`);
-    }
+      if (cursor) {
+        const cursorCondition = or(
+          lt(appSubscriptions.created_at, new Date(cursor.created_at)),
+          and(eq(appSubscriptions.created_at, new Date(cursor.created_at)), lt(appSubscriptions.id, cursor.id)),
+        );
+        if (cursorCondition) {
+          conditions.push(cursorCondition);
+        }
+      }
 
-    query = query
-      .order('created_at', { ascending: false })
-      .order('id', { ascending: false })
-      .limit(params.limit);
+      const results = await db
+        .select()
+        .from(appSubscriptions)
+        .innerJoin(appPackages, eq(appSubscriptions.package_id, appPackages.id))
+        .innerJoin(appPermissions, eq(appPackages.permission_id, appPermissions.id))
+        .where(conditions.length > 0 ? and(...conditions) : undefined)
+        .orderBy(desc(appSubscriptions.created_at), desc(appSubscriptions.id))
+        .limit(params.limit);
 
-    const { data, error } = await query;
+      const items = results.map((row) => SubscriptionsService.mapToSubWithPkg(row));
+      const pagination = PaginationUtil.buildPagination(items, params.limit);
 
-    if (error) {
-      Logger.error('Failed to fetch subscriptions', 'SUBSCRIPTIONS_SERVICE', { error: error.message });
+      return { items, pagination };
+    } catch (error) {
+      if (error instanceof HttpError) {
+        throw error;
+      }
+      Logger.error('Failed to fetch subscriptions', 'SUBSCRIPTIONS_SERVICE', { error: (error as Error).message });
       throw new HttpError(HTTP_STATUS.INTERNAL_SERVER_ERROR, 'Failed to fetch subscriptions');
     }
-
-    const items = data as ISubscriptionWithPackage[];
-    const pagination = PaginationUtil.buildPagination(items, params.limit);
-
-    return { items, pagination };
   }
 
   public static async getSubscriptionById(subscriptionId: string): Promise<ISubscriptionWithPackage> {
-    const { data, error } = await supabaseAdmin
-      .from('app_subscriptions')
-      .select('*, app_packages(*, app_permissions(*))')
-      .eq('id', subscriptionId)
-      .single();
+    try {
+      const [result] = await db
+        .select()
+        .from(appSubscriptions)
+        .innerJoin(appPackages, eq(appSubscriptions.package_id, appPackages.id))
+        .innerJoin(appPermissions, eq(appPackages.permission_id, appPermissions.id))
+        .where(eq(appSubscriptions.id, subscriptionId))
+        .limit(1);
 
-    if (error || !data) {
-      Logger.warn('Subscription not found', 'SUBSCRIPTIONS_SERVICE', { subscriptionId });
-      throw new HttpError(HTTP_STATUS.NOT_FOUND, 'Subscription not found');
+      if (!result) {
+        Logger.warn('Subscription not found', 'SUBSCRIPTIONS_SERVICE', { subscriptionId });
+        throw new HttpError(HTTP_STATUS.NOT_FOUND, 'Subscription not found');
+      }
+
+      return SubscriptionsService.mapToSubWithPkg(result);
+    } catch (error) {
+      if (error instanceof HttpError) {
+        throw error;
+      }
+      Logger.error('Failed to fetch subscription', 'SUBSCRIPTIONS_SERVICE', { error: (error as Error).message });
+      throw new HttpError(HTTP_STATUS.INTERNAL_SERVER_ERROR, 'Failed to fetch subscription');
     }
-
-    return data as ISubscriptionWithPackage;
   }
 
   public static async getUserSubscriptions(
     userId: string,
     params: ICursorParams,
   ): Promise<IPaginatedResult<ISubscriptionWithPackage>> {
-    const cursor = PaginationUtil.decodeCursor(params.cursor);
+    try {
+      const cursor = PaginationUtil.decodeCursor(params.cursor);
 
-    let query = supabaseAdmin
-      .from('app_subscriptions')
-      .select('*, app_packages(*, app_permissions(*))')
-      .eq('profile_id', userId);
+      const conditions: SQL[] = [eq(appSubscriptions.profile_id, userId)];
 
-    if (cursor) {
-      query = query.or(`created_at.lt.${cursor.created_at},and(created_at.eq.${cursor.created_at},id.lt.${cursor.id})`);
-    }
+      if (cursor) {
+        const cursorCondition = or(
+          lt(appSubscriptions.created_at, new Date(cursor.created_at)),
+          and(eq(appSubscriptions.created_at, new Date(cursor.created_at)), lt(appSubscriptions.id, cursor.id)),
+        );
+        if (cursorCondition) {
+          conditions.push(cursorCondition);
+        }
+      }
 
-    query = query
-      .order('created_at', { ascending: false })
-      .order('id', { ascending: false })
-      .limit(params.limit);
+      const results = await db
+        .select()
+        .from(appSubscriptions)
+        .innerJoin(appPackages, eq(appSubscriptions.package_id, appPackages.id))
+        .innerJoin(appPermissions, eq(appPackages.permission_id, appPermissions.id))
+        .where(and(...conditions))
+        .orderBy(desc(appSubscriptions.created_at), desc(appSubscriptions.id))
+        .limit(params.limit);
 
-    const { data, error } = await query;
+      const items = results.map((row) => SubscriptionsService.mapToSubWithPkg(row));
+      const pagination = PaginationUtil.buildPagination(items, params.limit);
 
-    if (error) {
-      Logger.error('Failed to fetch user subscriptions', 'SUBSCRIPTIONS_SERVICE', { error: error.message, userId });
+      return { items, pagination };
+    } catch (error) {
+      if (error instanceof HttpError) {
+        throw error;
+      }
+      Logger.error('Failed to fetch user subscriptions', 'SUBSCRIPTIONS_SERVICE', { error: (error as Error).message, userId });
       throw new HttpError(HTTP_STATUS.INTERNAL_SERVER_ERROR, 'Failed to fetch subscriptions');
     }
-
-    const items = data as ISubscriptionWithPackage[];
-    const pagination = PaginationUtil.buildPagination(items, params.limit);
-
-    return { items, pagination };
   }
 
   public static async getUserPermissions(userId: string): Promise<IUserPermissions> {
-    const today = new Date().toISOString().split('T')[0];
+    try {
+      const today = new Date().toISOString().split('T')[0] ?? '';
 
-    const { data, error } = await supabaseAdmin
-      .from('app_subscriptions')
-      .select('*, app_packages(*, app_permissions(*))')
-      .eq('profile_id', userId)
-      .in('status', ['active', 'cancelled'])
-      .lte('start_date', today)
-      .gte('end_date', today);
+      const results = await db
+        .select()
+        .from(appSubscriptions)
+        .innerJoin(appPackages, eq(appSubscriptions.package_id, appPackages.id))
+        .innerJoin(appPermissions, eq(appPackages.permission_id, appPermissions.id))
+        .where(and(
+          eq(appSubscriptions.profile_id, userId),
+          inArray(appSubscriptions.status, ['active', 'cancelled']),
+          lte(appSubscriptions.start_date, today),
+          gte(appSubscriptions.end_date, today),
+        ));
 
-    if (error) {
-      Logger.error('Failed to fetch user permissions', 'SUBSCRIPTIONS_SERVICE', { error: error.message, userId });
+      const subscriptions = results.map((row) => SubscriptionsService.mapToSubWithPkg(row));
+
+      const permissions: IUserPermissions = {
+        psira_access: false,
+        firearm_access: false,
+        vehicle_access: false,
+        certificate_access: false,
+        drivers_access: false,
+        active_subscriptions: subscriptions.length,
+      };
+
+      for (const sub of subscriptions) {
+        const perm = sub.app_packages.app_permissions;
+        permissions.psira_access = permissions.psira_access || perm.psira_access;
+        permissions.firearm_access = permissions.firearm_access || perm.firearm_access;
+        permissions.vehicle_access = permissions.vehicle_access || perm.vehicle_access;
+        permissions.certificate_access = permissions.certificate_access || perm.certificate_access;
+        permissions.drivers_access = permissions.drivers_access || perm.drivers_access;
+      }
+
+      return permissions;
+    } catch (error) {
+      if (error instanceof HttpError) {
+        throw error;
+      }
+      Logger.error('Failed to fetch user permissions', 'SUBSCRIPTIONS_SERVICE', { error: (error as Error).message, userId });
       throw new HttpError(HTTP_STATUS.INTERNAL_SERVER_ERROR, 'Failed to fetch permissions');
     }
-
-    const subscriptions = data as ISubscriptionWithPackage[];
-
-    const permissions: IUserPermissions = {
-      psira_access: false,
-      firearm_access: false,
-      vehicle_access: false,
-      certificate_access: false,
-      drivers_access: false,
-      active_subscriptions: subscriptions.length,
-    };
-
-    for (const sub of subscriptions) {
-      const perm = sub.app_packages.app_permissions;
-      permissions.psira_access = permissions.psira_access || perm.psira_access;
-      permissions.firearm_access = permissions.firearm_access || perm.firearm_access;
-      permissions.vehicle_access = permissions.vehicle_access || perm.vehicle_access;
-      permissions.certificate_access = permissions.certificate_access || perm.certificate_access;
-      permissions.drivers_access = permissions.drivers_access || perm.drivers_access;
-    }
-
-    return permissions;
   }
 
   public static async createSubscription(data: ICreateSubscriptionRequest): Promise<ISubscription> {
-    const { error: profileError } = await supabaseAdmin
-      .from('profiles')
-      .select('id')
-      .eq('id', data.profile_id)
-      .single();
+    try {
+      const [profileExists] = await db
+        .select({ id: profiles.id })
+        .from(profiles)
+        .where(eq(profiles.id, data.profile_id));
 
-    if (profileError) {
-      Logger.warn('Profile not found for subscription creation', 'SUBSCRIPTIONS_SERVICE', { profile_id: data.profile_id });
-      throw new HttpError(HTTP_STATUS.BAD_REQUEST, 'Invalid profile ID');
-    }
+      if (!profileExists) {
+        Logger.warn('Profile not found for subscription creation', 'SUBSCRIPTIONS_SERVICE', { profile_id: data.profile_id });
+        throw new HttpError(HTTP_STATUS.BAD_REQUEST, 'Invalid profile ID');
+      }
 
-    const { error: packageError } = await supabaseAdmin
-      .from('app_packages')
-      .select('id')
-      .eq('id', data.package_id)
-      .eq('is_active', true)
-      .single();
+      const [packageExists] = await db
+        .select({ id: appPackages.id })
+        .from(appPackages)
+        .where(and(eq(appPackages.id, data.package_id), eq(appPackages.is_active, true)));
 
-    if (packageError) {
-      Logger.warn('Package not found or inactive for subscription creation', 'SUBSCRIPTIONS_SERVICE', { package_id: data.package_id });
-      throw new HttpError(HTTP_STATUS.BAD_REQUEST, 'Invalid or inactive package ID');
-    }
+      if (!packageExists) {
+        Logger.warn('Package not found or inactive for subscription creation', 'SUBSCRIPTIONS_SERVICE', { package_id: data.package_id });
+        throw new HttpError(HTTP_STATUS.BAD_REQUEST, 'Invalid or inactive package ID');
+      }
 
-    const { data: subscription, error } = await supabaseAdmin
-      .from('app_subscriptions')
-      .insert({
-        profile_id: data.profile_id,
-        package_id: data.package_id,
-        start_date: data.start_date,
-        end_date: data.end_date,
-        status: 'active',
-      })
-      .select()
-      .single();
+      const [subscription] = await db
+        .insert(appSubscriptions)
+        .values({
+          profile_id: data.profile_id,
+          package_id: data.package_id,
+          start_date: data.start_date,
+          end_date: data.end_date,
+          status: 'active',
+        })
+        .returning();
 
-    if (error) {
-      Logger.error('Failed to create subscription', 'SUBSCRIPTIONS_SERVICE', { error: error.message });
+      if (!subscription) {
+        throw new HttpError(HTTP_STATUS.INTERNAL_SERVER_ERROR, 'Failed to create subscription');
+      }
+
+      return SubscriptionsService.mapToSub(subscription);
+    } catch (error) {
+      if (error instanceof HttpError) {
+        throw error;
+      }
+      Logger.error('Failed to create subscription', 'SUBSCRIPTIONS_SERVICE', { error: (error as Error).message });
       throw new HttpError(HTTP_STATUS.INTERNAL_SERVER_ERROR, 'Failed to create subscription');
     }
-
-    return subscription as ISubscription;
   }
 
   private static async getExistingSubscription(subscriptionId: string): Promise<ISubscription> {
-    const { data, error } = await supabaseAdmin
-      .from('app_subscriptions')
-      .select('*')
-      .eq('id', subscriptionId)
-      .single();
+    const [data] = await db
+      .select()
+      .from(appSubscriptions)
+      .where(eq(appSubscriptions.id, subscriptionId));
 
-    if (error || !data) {
+    if (!data) {
       Logger.warn('Subscription not found for update', 'SUBSCRIPTIONS_SERVICE', { subscriptionId });
       throw new HttpError(HTTP_STATUS.NOT_FOUND, 'Subscription not found');
     }
 
-    return data as ISubscription;
+    return SubscriptionsService.mapToSub(data);
   }
 
   private static async validateActivePackage(packageId: string): Promise<void> {
-    const { error } = await supabaseAdmin
-      .from('app_packages')
-      .select('id')
-      .eq('id', packageId)
-      .eq('is_active', true)
-      .single();
+    const [existing] = await db
+      .select({ id: appPackages.id })
+      .from(appPackages)
+      .where(and(eq(appPackages.id, packageId), eq(appPackages.is_active, true)));
 
-    if (error) {
+    if (!existing) {
       Logger.warn('Package not found for subscription update', 'SUBSCRIPTIONS_SERVICE', { package_id: packageId });
       throw new HttpError(HTTP_STATUS.BAD_REQUEST, 'Invalid or inactive package ID');
     }
@@ -219,200 +261,222 @@ export default class SubscriptionsService {
     subscriptionId: string,
     data: IUpdateSubscriptionRequest,
   ): Promise<ISubscription> {
-    const existing = await this.getExistingSubscription(subscriptionId);
+    try {
+      const existing = await this.getExistingSubscription(subscriptionId);
 
-    if (data.package_id) {
-      await this.validateActivePackage(data.package_id);
-    }
+      if (data.package_id) {
+        await this.validateActivePackage(data.package_id);
+      }
 
-    const startDate = data.start_date ?? existing.start_date;
-    const endDate = data.end_date ?? existing.end_date;
-    if (new Date(endDate) < new Date(startDate)) {
-      throw new HttpError(HTTP_STATUS.BAD_REQUEST, 'End date must be on or after start date');
-    }
+      const startDate = data.start_date ?? existing.start_date;
+      const endDate = data.end_date ?? existing.end_date;
+      if (new Date(endDate) < new Date(startDate)) {
+        throw new HttpError(HTTP_STATUS.BAD_REQUEST, 'End date must be on or after start date');
+      }
 
-    const updateData = buildPartialUpdate(data, ['package_id', 'start_date', 'end_date', 'status']);
+      const updateData = buildPartialUpdate(data, ['package_id', 'start_date', 'end_date', 'status']);
 
-    const { data: subscription, error: updateError } = await supabaseAdmin
-      .from('app_subscriptions')
-      .update(updateData)
-      .eq('id', subscriptionId)
-      .select()
-      .single();
+      const [subscription] = await db
+        .update(appSubscriptions)
+        .set(updateData)
+        .where(eq(appSubscriptions.id, subscriptionId))
+        .returning();
 
-    if (updateError) {
-      Logger.error('Failed to update subscription', 'SUBSCRIPTIONS_SERVICE', { error: updateError.message });
+      if (!subscription) {
+        throw new HttpError(HTTP_STATUS.INTERNAL_SERVER_ERROR, 'Failed to update subscription');
+      }
+
+      return SubscriptionsService.mapToSub(subscription);
+    } catch (error) {
+      if (error instanceof HttpError) {
+        throw error;
+      }
+      Logger.error('Failed to update subscription', 'SUBSCRIPTIONS_SERVICE', { error: (error as Error).message });
       throw new HttpError(HTTP_STATUS.INTERNAL_SERVER_ERROR, 'Failed to update subscription');
     }
-
-    return subscription as ISubscription;
   }
 
   public static async cancelSubscription(subscriptionId: string): Promise<void> {
-    const { error: findError } = await supabaseAdmin
-      .from('app_subscriptions')
-      .select('id')
-      .eq('id', subscriptionId)
-      .single();
+    try {
+      const [existing] = await db
+        .select({ id: appSubscriptions.id })
+        .from(appSubscriptions)
+        .where(eq(appSubscriptions.id, subscriptionId));
 
-    if (findError) {
-      Logger.warn('Subscription not found for cancellation', 'SUBSCRIPTIONS_SERVICE', { subscriptionId });
-      throw new HttpError(HTTP_STATUS.NOT_FOUND, 'Subscription not found');
-    }
+      if (!existing) {
+        Logger.warn('Subscription not found for cancellation', 'SUBSCRIPTIONS_SERVICE', { subscriptionId });
+        throw new HttpError(HTTP_STATUS.NOT_FOUND, 'Subscription not found');
+      }
 
-    const { error: updateError } = await supabaseAdmin
-      .from('app_subscriptions')
-      .update({ status: 'cancelled' })
-      .eq('id', subscriptionId);
-
-    if (updateError) {
-      Logger.error('Failed to cancel subscription', 'SUBSCRIPTIONS_SERVICE', { error: updateError.message });
+      await db
+        .update(appSubscriptions)
+        .set({ status: 'cancelled' })
+        .where(eq(appSubscriptions.id, subscriptionId));
+    } catch (error) {
+      if (error instanceof HttpError) {
+        throw error;
+      }
+      Logger.error('Failed to cancel subscription', 'SUBSCRIPTIONS_SERVICE', { error: (error as Error).message });
       throw new HttpError(HTTP_STATUS.INTERNAL_SERVER_ERROR, 'Failed to cancel subscription');
     }
   }
 
-  /**
-   * Find subscription by Paystack subscription code
-   */
   public static async getByPaystackCode(subscriptionCode: string): Promise<ISubscriptionWithPackage | null> {
-    const { data, error } = await supabaseAdmin
-      .from('app_subscriptions')
-      .select('*, app_packages(*, app_permissions(*))')
-      .eq('paystack_subscription_code', subscriptionCode)
-      .single();
+    try {
+      const [result] = await db
+        .select()
+        .from(appSubscriptions)
+        .innerJoin(appPackages, eq(appSubscriptions.package_id, appPackages.id))
+        .innerJoin(appPermissions, eq(appPackages.permission_id, appPermissions.id))
+        .where(eq(appSubscriptions.paystack_subscription_code, subscriptionCode))
+        .limit(1);
 
-    if (error) {
-      if (error.code === 'PGRST116') {
-        // No rows returned
+      if (!result) {
         return null;
       }
-      Logger.error('Failed to fetch subscription by Paystack code', 'SUBSCRIPTIONS_SERVICE', { error: error.message });
+
+      return SubscriptionsService.mapToSubWithPkg(result);
+    } catch (error) {
+      Logger.error('Failed to fetch subscription by Paystack code', 'SUBSCRIPTIONS_SERVICE', { error: (error as Error).message });
       throw new HttpError(HTTP_STATUS.INTERNAL_SERVER_ERROR, 'Failed to fetch subscription');
     }
-
-    return data as ISubscriptionWithPackage;
   }
 
-  /**
-   * Create subscription from Paystack webhook data
-   */
   public static async createFromPaystack(data: ICreateSubscriptionFromPaystack): Promise<ISubscription> {
-    // Calculate start and end dates based on package type
-    const startDate = new Date();
-    const endDate = new Date(data.current_period_end);
+    try {
+      const startDate = new Date();
+      const endDate = new Date(data.current_period_end);
 
-    const { data: subscription, error } = await supabaseAdmin
-      .from('app_subscriptions')
-      .insert({
-        profile_id: data.profile_id,
-        package_id: data.package_id,
-        start_date: startDate.toISOString().split('T')[0],
-        end_date: endDate.toISOString().split('T')[0],
-        status: 'active',
-        paystack_subscription_code: data.paystack_subscription_code,
-        paystack_customer_code: data.paystack_customer_code,
-        paystack_email_token: data.paystack_email_token,
-        paystack_transaction_reference: data.paystack_transaction_reference,
-        current_period_end: data.current_period_end,
-      })
-      .select()
-      .single();
+      const [subscription] = await db
+        .insert(appSubscriptions)
+        .values({
+          profile_id: data.profile_id,
+          package_id: data.package_id,
+          start_date: startDate.toISOString().split('T')[0] ?? '',
+          end_date: endDate.toISOString().split('T')[0] ?? '',
+          status: 'active',
+          paystack_subscription_code: data.paystack_subscription_code,
+          paystack_customer_code: data.paystack_customer_code,
+          paystack_email_token: data.paystack_email_token,
+          paystack_transaction_reference: data.paystack_transaction_reference,
+          current_period_end: new Date(data.current_period_end),
+        })
+        .returning();
 
-    if (error) {
-      Logger.error('Failed to create subscription from Paystack', 'SUBSCRIPTIONS_SERVICE', { error: error.message });
+      if (!subscription) {
+        throw new HttpError(HTTP_STATUS.INTERNAL_SERVER_ERROR, 'Failed to create subscription');
+      }
+
+      return SubscriptionsService.mapToSub(subscription);
+    } catch (error) {
+      if (error instanceof HttpError) {
+        throw error;
+      }
+      Logger.error('Failed to create subscription from Paystack', 'SUBSCRIPTIONS_SERVICE', { error: (error as Error).message });
       throw new HttpError(HTTP_STATUS.INTERNAL_SERVER_ERROR, 'Failed to create subscription');
     }
-
-    return subscription as ISubscription;
   }
 
-  /**
-   * Renew subscription after successful charge
-   */
   public static async renewSubscription(
     subscriptionCode: string,
     newPeriodEnd: string,
   ): Promise<ISubscription> {
-    const existing = await this.getByPaystackCode(subscriptionCode);
-    if (!existing) {
-      throw new HttpError(HTTP_STATUS.NOT_FOUND, 'Subscription not found');
-    }
+    try {
+      const existing = await this.getByPaystackCode(subscriptionCode);
+      if (!existing) {
+        throw new HttpError(HTTP_STATUS.NOT_FOUND, 'Subscription not found');
+      }
 
-    const endDate = new Date(newPeriodEnd);
+      const endDate = new Date(newPeriodEnd);
 
-    const { data: subscription, error } = await supabaseAdmin
-      .from('app_subscriptions')
-      .update({
-        end_date: endDate.toISOString().split('T')[0],
-        current_period_end: newPeriodEnd,
-        status: 'active',
-      })
-      .eq('paystack_subscription_code', subscriptionCode)
-      .select()
-      .single();
+      const [subscription] = await db
+        .update(appSubscriptions)
+        .set({
+          end_date: endDate.toISOString().split('T')[0] ?? '',
+          current_period_end: new Date(newPeriodEnd),
+          status: 'active',
+        })
+        .where(eq(appSubscriptions.paystack_subscription_code, subscriptionCode))
+        .returning();
 
-    if (error) {
-      Logger.error('Failed to renew subscription', 'SUBSCRIPTIONS_SERVICE', { error: error.message });
+      if (!subscription) {
+        throw new HttpError(HTTP_STATUS.INTERNAL_SERVER_ERROR, 'Failed to renew subscription');
+      }
+
+      return SubscriptionsService.mapToSub(subscription);
+    } catch (error) {
+      if (error instanceof HttpError) {
+        throw error;
+      }
+      Logger.error('Failed to renew subscription', 'SUBSCRIPTIONS_SERVICE', { error: (error as Error).message });
       throw new HttpError(HTTP_STATUS.INTERNAL_SERVER_ERROR, 'Failed to renew subscription');
     }
-
-    return subscription as ISubscription;
   }
 
   public static async markCancelledByPaystack(subscriptionCode: string): Promise<void> {
-    const { error } = await supabaseAdmin
-      .from('app_subscriptions')
-      .update({ status: 'cancelled' })
-      .eq('paystack_subscription_code', subscriptionCode);
-
-    if (error) {
-      Logger.error('Failed to cancel subscription from Paystack', 'SUBSCRIPTIONS_SERVICE', { error: error.message });
+    try {
+      await db
+        .update(appSubscriptions)
+        .set({ status: 'cancelled' })
+        .where(eq(appSubscriptions.paystack_subscription_code, subscriptionCode));
+    } catch (error) {
+      Logger.error('Failed to cancel subscription from Paystack', 'SUBSCRIPTIONS_SERVICE', { error: (error as Error).message });
       throw new HttpError(HTTP_STATUS.INTERNAL_SERVER_ERROR, 'Failed to cancel subscription');
     }
   }
 
   public static async markRefunded(subscriptionId: string): Promise<ISubscription> {
-    const { data: subscription, error } = await supabaseAdmin
-      .from('app_subscriptions')
-      .update({
-        status: 'refunded',
-        refunded_at: new Date().toISOString(),
-      })
-      .eq('id', subscriptionId)
-      .select()
-      .single();
+    try {
+      const [subscription] = await db
+        .update(appSubscriptions)
+        .set({
+          status: 'refunded',
+          refunded_at: new Date(),
+        })
+        .where(eq(appSubscriptions.id, subscriptionId))
+        .returning();
 
-    if (error) {
-      Logger.error('Failed to mark subscription as refunded', 'SUBSCRIPTIONS_SERVICE', { error: error.message });
+      if (!subscription) {
+        throw new HttpError(HTTP_STATUS.INTERNAL_SERVER_ERROR, 'Failed to process refund');
+      }
+
+      return SubscriptionsService.mapToSub(subscription);
+    } catch (error) {
+      if (error instanceof HttpError) {
+        throw error;
+      }
+      Logger.error('Failed to mark subscription as refunded', 'SUBSCRIPTIONS_SERVICE', { error: (error as Error).message });
       throw new HttpError(HTTP_STATUS.INTERNAL_SERVER_ERROR, 'Failed to process refund');
     }
-
-    return subscription as ISubscription;
   }
 
   public static async getUserActiveSubscription(userId: string): Promise<ISubscriptionWithPackage | null> {
-    const today = new Date().toISOString().split('T')[0];
+    try {
+      const today = new Date().toISOString().split('T')[0] ?? '';
 
-    const { data, error } = await supabaseAdmin
-      .from('app_subscriptions')
-      .select('*, app_packages(*, app_permissions(*))')
-      .eq('profile_id', userId)
-      .in('status', ['active', 'cancelled'])
-      .lte('start_date', today)
-      .gte('end_date', today)
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .single();
+      const [result] = await db
+        .select()
+        .from(appSubscriptions)
+        .innerJoin(appPackages, eq(appSubscriptions.package_id, appPackages.id))
+        .innerJoin(appPermissions, eq(appPackages.permission_id, appPermissions.id))
+        .where(and(
+          eq(appSubscriptions.profile_id, userId),
+          inArray(appSubscriptions.status, ['active', 'cancelled']),
+          lte(appSubscriptions.start_date, today),
+          gte(appSubscriptions.end_date, today),
+        ))
+        .orderBy(desc(appSubscriptions.created_at))
+        .limit(1);
 
-    if (error) {
-      if (error.code === 'PGRST116') {
+      if (!result) {
         return null;
       }
-      Logger.error('Failed to fetch user active subscription', 'SUBSCRIPTIONS_SERVICE', { error: error.message, userId });
+
+      return SubscriptionsService.mapToSubWithPkg(result);
+    } catch (error) {
+      Logger.error('Failed to fetch user active subscription', 'SUBSCRIPTIONS_SERVICE', { error: (error as Error).message, userId });
       throw new HttpError(HTTP_STATUS.INTERNAL_SERVER_ERROR, 'Failed to fetch subscription');
     }
-
-    return data as ISubscriptionWithPackage;
   }
 
   public static async getProfileIdsWithValidSubscription(profileIds: string[]): Promise<Set<string>> {
@@ -420,40 +484,40 @@ export default class SubscriptionsService {
       return new Set();
     }
 
-    const today = new Date().toISOString().split('T')[0];
+    try {
+      const today = new Date().toISOString().split('T')[0] ?? '';
 
-    const { data, error } = await supabaseAdmin
-      .from('app_subscriptions')
-      .select('profile_id')
-      .in('profile_id', profileIds)
-      .in('status', ['active', 'cancelled'])
-      .lte('start_date', today)
-      .gte('end_date', today);
+      const data = await db
+        .select({ profile_id: appSubscriptions.profile_id })
+        .from(appSubscriptions)
+        .where(and(
+          inArray(appSubscriptions.profile_id, profileIds),
+          inArray(appSubscriptions.status, ['active', 'cancelled']),
+          lte(appSubscriptions.start_date, today),
+          gte(appSubscriptions.end_date, today),
+        ));
 
-    if (error) {
-      Logger.error('Failed to fetch valid subscriptions', 'SUBSCRIPTIONS_SERVICE', { error: error.message });
+      return new Set(data.map((s) => s.profile_id));
+    } catch (error) {
+      Logger.error('Failed to fetch valid subscriptions', 'SUBSCRIPTIONS_SERVICE', { error: (error as Error).message });
       throw new HttpError(HTTP_STATUS.INTERNAL_SERVER_ERROR, 'Failed to check subscriptions');
     }
-
-    const subscriptions = data as Array<{ profile_id: string }>;
-    return new Set(subscriptions.map((s) => s.profile_id));
   }
 
   public static async getExpiredActiveSubscriptions(): Promise<Pick<ISubscription, 'id'>[]> {
-    const today = new Date().toISOString().split('T')[0];
+    try {
+      const today = new Date().toISOString().split('T')[0] ?? '';
 
-    const { data, error } = await supabaseAdmin
-      .from('app_subscriptions')
-      .select('id')
-      .eq('status', 'active')
-      .lt('end_date', today);
+      const data = await db
+        .select({ id: appSubscriptions.id })
+        .from(appSubscriptions)
+        .where(and(eq(appSubscriptions.status, 'active'), lt(appSubscriptions.end_date, today)));
 
-    if (error) {
-      Logger.error('Failed to fetch expired active subscriptions', 'SUBSCRIPTIONS_SERVICE', { error: error.message });
+      return data;
+    } catch (error) {
+      Logger.error('Failed to fetch expired active subscriptions', 'SUBSCRIPTIONS_SERVICE', { error: (error as Error).message });
       throw new HttpError(HTTP_STATUS.INTERNAL_SERVER_ERROR, 'Failed to fetch expired subscriptions');
     }
-
-    return data as Pick<ISubscription, 'id'>[];
   }
 
   public static async bulkExpireSubscriptions(subscriptionIds: string[]): Promise<number> {
@@ -461,17 +525,67 @@ export default class SubscriptionsService {
       return 0;
     }
 
-    const { data, error } = await supabaseAdmin
-      .from('app_subscriptions')
-      .update({ status: 'expired' })
-      .in('id', subscriptionIds)
-      .select('id');
+    try {
+      const data = await db
+        .update(appSubscriptions)
+        .set({ status: 'expired' })
+        .where(inArray(appSubscriptions.id, subscriptionIds))
+        .returning({ id: appSubscriptions.id });
 
-    if (error) {
-      Logger.error('Failed to bulk expire subscriptions', 'SUBSCRIPTIONS_SERVICE', { error: error.message });
+      return data.length;
+    } catch (error) {
+      Logger.error('Failed to bulk expire subscriptions', 'SUBSCRIPTIONS_SERVICE', { error: (error as Error).message });
       throw new HttpError(HTTP_STATUS.INTERNAL_SERVER_ERROR, 'Failed to expire subscriptions');
     }
+  }
 
-    return data.length;
+  private static mapToSub(row: typeof appSubscriptions.$inferSelect): ISubscription {
+    return {
+      id: row.id,
+      profile_id: row.profile_id,
+      package_id: row.package_id,
+      start_date: row.start_date,
+      end_date: row.end_date,
+      status: row.status as ISubscription['status'],
+      paystack_subscription_code: row.paystack_subscription_code,
+      paystack_customer_code: row.paystack_customer_code,
+      paystack_email_token: row.paystack_email_token,
+      paystack_transaction_reference: row.paystack_transaction_reference,
+      current_period_end: row.current_period_end?.toISOString() ?? null,
+      refunded_at: row.refunded_at?.toISOString() ?? null,
+      created_at: row.created_at.toISOString(),
+      updated_at: row.updated_at.toISOString(),
+    };
+  }
+
+  private static mapToSubWithPkg(row: JoinedSubscriptionRow): ISubscriptionWithPackage {
+    const pkg = row.app_packages;
+    const perm = row.app_permissions;
+    return {
+      ...SubscriptionsService.mapToSub(row.app_subscriptions),
+      app_packages: {
+        id: pkg.id,
+        package_name: pkg.package_name,
+        slug: pkg.slug,
+        type: pkg.type as ISubscriptionWithPackage['app_packages']['type'],
+        permission_id: pkg.permission_id,
+        description: pkg.description,
+        is_active: pkg.is_active,
+        paystack_plan_code: pkg.paystack_plan_code,
+        created_at: pkg.created_at.toISOString(),
+        updated_at: pkg.updated_at.toISOString(),
+        app_permissions: {
+          id: perm.id,
+          permission_name: perm.permission_name,
+          psira_access: perm.psira_access,
+          firearm_access: perm.firearm_access,
+          vehicle_access: perm.vehicle_access,
+          certificate_access: perm.certificate_access,
+          drivers_access: perm.drivers_access,
+          created_at: perm.created_at.toISOString(),
+          updated_at: perm.updated_at.toISOString(),
+        },
+      },
+    };
   }
 }

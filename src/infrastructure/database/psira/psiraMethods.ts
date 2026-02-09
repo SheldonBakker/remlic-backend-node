@@ -1,8 +1,10 @@
 import type { IPsiraApiRequest, IPsiraApiResponse, IPsiraResult, IPsiraOfficer, ICreatePsiraOfficerRequest, IPsiraFilters } from './types.js';
+import db from '../drizzleClient.js';
+import { psiraOfficers } from '../schema/index.js';
+import { eq, or, lt, and, desc, asc, ilike, type SQL } from 'drizzle-orm';
 import { HttpError } from '../../../shared/types/errors/appError.js';
 import { HTTP_STATUS } from '../../../shared/constants/httpStatus.js';
 import { Logger } from '../../../shared/utils/logger.js';
-import { supabase } from '../supabaseClient.js';
 import { PaginationUtil, type ICursorParams, type IPaginatedResult } from '../../../shared/utils/pagination.js';
 
 const PSIRA_API_URL = 'https://psiraapi.sortelearn.com/api/SecurityOfficer/Get_ApplicantDetails';
@@ -83,85 +85,104 @@ export default class PsiraService {
     params: ICursorParams,
     filters: IPsiraFilters = {},
   ): Promise<IPaginatedResult<IPsiraOfficer>> {
-    const cursor = PaginationUtil.decodeCursor(params.cursor);
+    try {
+      const cursor = PaginationUtil.decodeCursor(params.cursor);
 
-    let query = supabase
-      .from('psira_officers')
-      .select('*')
-      .eq('profile_id', userId);
+      const conditions: SQL[] = [eq(psiraOfficers.profile_id, userId)];
 
-    if (filters.id_number) {
-      query = query.ilike('id_number', filters.id_number);
-    }
+      if (filters.id_number) {
+        conditions.push(ilike(psiraOfficers.id_number, filters.id_number));
+      }
 
-    if (filters.sort_by) {
-      const ascending = filters.sort_order === 'asc';
-      query = query.order(filters.sort_by, { ascending });
-    }
+      if (cursor) {
+        const cursorCondition = or(
+          lt(psiraOfficers.created_at, new Date(cursor.created_at)),
+          and(eq(psiraOfficers.created_at, new Date(cursor.created_at)), lt(psiraOfficers.id, cursor.id)),
+        );
+        if (cursorCondition) {
+          conditions.push(cursorCondition);
+        }
+      }
 
-    if (cursor) {
-      query = query.or(`created_at.lt.${cursor.created_at},and(created_at.eq.${cursor.created_at},id.lt.${cursor.id})`);
-    }
+      const orderClauses = [];
+      if (filters.sort_by) {
+        const col = psiraOfficers[filters.sort_by as keyof typeof psiraOfficers.$inferSelect];
+        orderClauses.push(filters.sort_order === 'asc' ? asc(col as unknown as SQL) : desc(col as unknown as SQL));
+      }
+      orderClauses.push(desc(psiraOfficers.created_at), desc(psiraOfficers.id));
 
-    query = query
-      .order('created_at', { ascending: false })
-      .order('id', { ascending: false })
-      .limit(params.limit);
+      const data = await db
+        .select()
+        .from(psiraOfficers)
+        .where(and(...conditions))
+        .orderBy(...orderClauses)
+        .limit(params.limit);
 
-    const { data, error } = await query;
+      const items = data.map((row) => PsiraService.mapToOfficer(row));
+      const pagination = PaginationUtil.buildPagination(items, params.limit);
 
-    if (error) {
+      return { items, pagination };
+    } catch (error) {
+      if (error instanceof HttpError) {
+        throw error;
+      }
       Logger.error('Failed to fetch officers', 'PSIRA_SERVICE', { error });
       throw new HttpError(HTTP_STATUS.INTERNAL_SERVER_ERROR, 'Failed to fetch officers');
     }
-
-    const items = data as IPsiraOfficer[];
-    const pagination = PaginationUtil.buildPagination(items, params.limit);
-
-    return { items, pagination };
   }
 
   public static async createOfficer(
     data: ICreatePsiraOfficerRequest,
     userId: string,
   ): Promise<IPsiraOfficer> {
-    const { data: officer, error } = await supabase
-      .from('psira_officers')
-      .insert({
-        profile_id: userId,
-        id_number: data.IDNumber,
-        first_name: data.FirstName,
-        last_name: data.LastName,
-        gender: data.Gender,
-        request_status: data.RequestStatus,
-        sira_no: data.SIRANo,
-        expiry_date: data.ExpiryDate,
-      })
-      .select()
-      .single();
+    try {
+      const [officer] = await db
+        .insert(psiraOfficers)
+        .values({
+          profile_id: userId,
+          id_number: data.IDNumber,
+          first_name: data.FirstName,
+          last_name: data.LastName,
+          gender: data.Gender,
+          request_status: data.RequestStatus,
+          sira_no: data.SIRANo,
+          expiry_date: data.ExpiryDate,
+        })
+        .returning();
 
-    if (error) {
-      if (error.code === '23505') {
+      if (!officer) {
+        throw new HttpError(HTTP_STATUS.INTERNAL_SERVER_ERROR, 'Failed to create officer');
+      }
+
+      return PsiraService.mapToOfficer(officer);
+    } catch (error) {
+      if (error instanceof HttpError) {
+        throw error;
+      }
+      if ((error as Record<string, unknown>).code === '23505') {
         throw new HttpError(HTTP_STATUS.CONFLICT, 'Officer with this ID number already exists');
       }
       Logger.error('Failed to create officer', 'PSIRA_SERVICE', { error });
       throw new HttpError(HTTP_STATUS.INTERNAL_SERVER_ERROR, 'Failed to create officer');
     }
-
-    return officer as IPsiraOfficer;
   }
 
   public static async deleteOfficer(officerId: string, userId: string): Promise<void> {
-    const { data, error } = await supabase
-      .from('psira_officers')
-      .delete()
-      .eq('id', officerId)
-      .eq('profile_id', userId)
-      .select()
-      .single();
+    try {
+      const [deleted] = await db
+        .delete(psiraOfficers)
+        .where(and(eq(psiraOfficers.id, officerId), eq(psiraOfficers.profile_id, userId)))
+        .returning();
 
-    if (error || !data) {
-      throw new HttpError(HTTP_STATUS.NOT_FOUND, 'Officer not found');
+      if (!deleted) {
+        throw new HttpError(HTTP_STATUS.NOT_FOUND, 'Officer not found');
+      }
+    } catch (error) {
+      if (error instanceof HttpError) {
+        throw error;
+      }
+      Logger.error('Failed to delete officer', 'PSIRA_SERVICE', { error });
+      throw new HttpError(HTTP_STATUS.INTERNAL_SERVER_ERROR, 'Failed to delete officer');
     }
   }
 
@@ -184,39 +205,52 @@ export default class PsiraService {
   }
 
   public static async getExpiredOfficers(): Promise<IPsiraOfficer[]> {
-    const { data, error } = await supabase
-      .from('psira_officers')
-      .select('*');
+    try {
+      const todayStr = new Date().toISOString().split('T')[0] ?? '';
 
-    if (error) {
+      const data = await db
+        .select()
+        .from(psiraOfficers)
+        .where(lt(psiraOfficers.expiry_date, todayStr));
+
+      return data.map((row) => PsiraService.mapToOfficer(row));
+    } catch (error) {
       Logger.error('Failed to fetch officers for expiry check', 'PSIRA_SERVICE', { error });
-      throw new Error('Failed to fetch officers');
+      throw new HttpError(HTTP_STATUS.INTERNAL_SERVER_ERROR, 'Failed to fetch officers');
     }
-
-    const officers = data as IPsiraOfficer[];
-    const now = new Date();
-
-    return officers.filter((officer) => {
-      const expiryDate = new Date(officer.expiry_date);
-      return !isNaN(expiryDate.getTime()) && expiryDate < now;
-    });
   }
 
   public static async updateOfficerFromApi(
     officerId: string,
     updates: { expiry_date: string; request_status: string },
   ): Promise<void> {
-    const { error } = await supabase
-      .from('psira_officers')
-      .update({
-        expiry_date: updates.expiry_date,
-        request_status: updates.request_status,
-      })
-      .eq('id', officerId);
-
-    if (error) {
+    try {
+      await db
+        .update(psiraOfficers)
+        .set({
+          expiry_date: updates.expiry_date,
+          request_status: updates.request_status,
+        })
+        .where(eq(psiraOfficers.id, officerId));
+    } catch (error) {
       Logger.error('Failed to update officer', 'PSIRA_SERVICE', { error, officerId });
-      throw new Error('Failed to update officer');
+      throw new HttpError(HTTP_STATUS.INTERNAL_SERVER_ERROR, 'Failed to update officer');
     }
+  }
+
+  private static mapToOfficer(row: typeof psiraOfficers.$inferSelect): IPsiraOfficer {
+    return {
+      id: row.id,
+      profile_id: row.profile_id,
+      id_number: row.id_number,
+      first_name: row.first_name,
+      last_name: row.last_name,
+      gender: row.gender ?? '',
+      request_status: row.request_status ?? '',
+      sira_no: row.sira_no ?? '',
+      expiry_date: row.expiry_date,
+      created_at: row.created_at.toISOString(),
+      updated_at: row.updated_at.toISOString(),
+    };
   }
 }

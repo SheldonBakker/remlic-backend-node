@@ -12,7 +12,6 @@ export interface IDriverLicence {
   issue_date?: string | null;
   date_of_birth?: string | null;
   gender?: string | null;
-  decoded_data?: Record<string, unknown> | null;
   created_at: string;
   updated_at: string;
 }
@@ -52,30 +51,3 @@ export interface IDriverLicenceListResponse {
   pagination: IPagination;
 }
 
-export interface ICreateDriverLicenceFromDecodeData {
-  profile_id: string;
-  surname: string;
-  initials: string;
-  id_number: string;
-  expiry_date: string;
-  licence_number: string;
-  licence_codes: string[];
-  issue_date: string;
-  date_of_birth: string;
-  gender: string;
-  decoded_data: Record<string, unknown>;
-}
-
-export interface IUpdateDriverLicenceFromDecodeData {
-  id: string;
-  profile_id: string;
-  surname: string;
-  initials: string;
-  expiry_date: string;
-  licence_number: string;
-  licence_codes: string[];
-  issue_date: string;
-  date_of_birth: string;
-  gender: string;
-  decoded_data: Record<string, unknown>;
-}

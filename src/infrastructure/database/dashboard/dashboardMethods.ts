@@ -1,5 +1,6 @@
 import type { IDashboardExpiringRecord, IDashboardFilters } from './types.js';
-import { supabaseAdmin } from '../supabaseClient.js';
+import db from '../drizzleClient.js';
+import { sql } from 'drizzle-orm';
 import { HttpError } from '../../../shared/types/errors/appError.js';
 import { HTTP_STATUS } from '../../../shared/constants/httpStatus.js';
 import { Logger } from '../../../shared/utils/logger.js';
@@ -11,58 +12,54 @@ export default class DashboardService {
     params: ICursorParams,
     filters: IDashboardFilters,
   ): Promise<IPaginatedResult<IDashboardExpiringRecord>> {
-    const cursor = PaginationUtil.decodeCursor(params.cursor);
+    try {
+      const cursor = PaginationUtil.decodeCursor(params.cursor);
 
-    const today = new Date().toISOString().split('T')[0];
-    const futureDate = new Date();
-    futureDate.setDate(futureDate.getDate() + filters.days_ahead);
-    const futureDateStr = futureDate.toISOString().split('T')[0];
+      const today = new Date().toISOString().split('T')[0] ?? '';
+      const futureDate = new Date();
+      futureDate.setDate(futureDate.getDate() + filters.days_ahead);
+      const futureDateStr = futureDate.toISOString().split('T')[0] ?? '';
 
-    let query = supabaseAdmin
-      .from('dashboard_expiring_records')
-      .select('*')
-      .eq('profile_id', userId);
+      const conditions = [sql`profile_id = ${userId}`];
 
-    if (!filters.include_expired) {
-      query = query.gte('expiry_date', today);
-    }
-    query = query.lte('expiry_date', futureDateStr);
+      if (!filters.include_expired) {
+        conditions.push(sql`expiry_date >= ${today}`);
+      }
+      conditions.push(sql`expiry_date <= ${futureDateStr}`);
 
-    if (filters.record_type) {
-      query = query.eq('record_type', filters.record_type);
-    }
+      if (filters.record_type) {
+        conditions.push(sql`record_type = ${filters.record_type}`);
+      }
 
-    const ascending = filters.sort_order !== 'desc';
-    query = query
-      .order('expiry_date', { ascending })
-      .order('created_at', { ascending: false })
-      .order('id', { ascending: false });
+      if (cursor) {
+        conditions.push(
+          sql`(created_at < ${cursor.created_at} OR (created_at = ${cursor.created_at} AND id < ${cursor.id}))`,
+        );
+      }
 
-    if (cursor) {
-      query = query.or(
-        `created_at.lt.${cursor.created_at},and(created_at.eq.${cursor.created_at},id.lt.${cursor.id})`,
-      );
-    }
+      const whereClause = sql.join(conditions, sql.raw(' AND '));
+      const orderDir = filters.sort_order === 'desc' ? sql.raw('DESC') : sql.raw('ASC');
+      const limitVal = params.limit + 1;
 
-    query = query.limit(params.limit + 1);
+      const query = sql`SELECT * FROM dashboard_expiring_records WHERE ${whereClause} ORDER BY expiry_date ${orderDir}, created_at DESC, id DESC LIMIT ${limitVal}`;
 
-    const { data, error } = await query;
+      const records = (await db.execute(query)) as unknown as IDashboardExpiringRecord[];
+      const hasMore = records.length > params.limit;
+      const items = hasMore ? records.slice(0, params.limit) : [...records];
+      const pagination = PaginationUtil.buildPagination(items, params.limit);
 
-    if (error) {
+      return { items, pagination };
+    } catch (error) {
+      if (error instanceof HttpError) {
+        throw error;
+      }
       Logger.error('Failed to fetch dashboard expiring records', 'DASHBOARD_SERVICE', {
-        error: error.message,
+        error: (error as Error).message,
       });
       throw new HttpError(
         HTTP_STATUS.INTERNAL_SERVER_ERROR,
         'Failed to fetch dashboard data',
       );
     }
-
-    const records = (data as IDashboardExpiringRecord[] | null) ?? [];
-    const hasMore = records.length > params.limit;
-    const items = hasMore ? records.slice(0, params.limit) : records;
-    const pagination = PaginationUtil.buildPagination(items, params.limit);
-
-    return { items, pagination };
   }
 }

@@ -81,7 +81,7 @@ export function registerPsiraUpdateJob(): void {
     schedule: SCHEDULE,
     timezone: TIMEZONE,
     handler: async () => {
-      const result = await run();
+      await run();
     },
   });
 }

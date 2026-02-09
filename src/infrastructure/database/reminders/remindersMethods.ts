@@ -7,125 +7,160 @@ import type {
   IBatchReminderItem,
   IBatchReminderResult,
 } from './types.js';
-import { supabaseAdmin } from '../supabaseClient.js';
+import db from '../drizzleClient.js';
+import { reminderSettings, firearms, vehicles, certificates, psiraOfficers, driverLicences } from '../schema/index.js';
+import { eq, and, inArray, sql } from 'drizzle-orm';
 import { HttpError } from '../../../shared/types/errors/appError.js';
 import { HTTP_STATUS } from '../../../shared/constants/httpStatus.js';
-import { ENTITY_TABLE_MAP } from '../../../shared/constants/entities.js';
 import { Logger } from '../../../shared/utils/logger.js';
+
+type EntityTable = typeof firearms | typeof vehicles | typeof certificates | typeof psiraOfficers | typeof driverLicences;
+
+const ENTITY_DRIZZLE_TABLE_MAP: Record<EntityType, EntityTable> = {
+  firearms,
+  vehicles,
+  certificates,
+  psira_officers: psiraOfficers,
+  driver_licences: driverLicences,
+};
 
 export default class RemindersService {
   public static async getAllSettings(userId: string): Promise<IReminderSettingsResponse> {
-    const { data, error } = await supabaseAdmin
-      .from('reminder_settings')
-      .select('*')
-      .eq('profile_id', userId);
+    try {
+      const data = await db
+        .select()
+        .from(reminderSettings)
+        .where(eq(reminderSettings.profile_id, userId));
 
-    if (error) {
-      Logger.error('Failed to fetch reminder settings', 'REMINDERS_SERVICE', { error: error.message });
+      const response: IReminderSettingsResponse = {
+        firearms: null,
+        vehicles: null,
+        certificates: null,
+        psira_officers: null,
+        driver_licences: null,
+      };
+
+      for (const row of data) {
+        const setting = RemindersService.mapToSetting(row);
+        response[setting.entity_type] = setting;
+      }
+
+      return response;
+    } catch (error) {
+      if (error instanceof HttpError) {
+        throw error;
+      }
+      Logger.error('Failed to fetch reminder settings', 'REMINDERS_SERVICE', { error: (error as Error).message });
       throw new HttpError(HTTP_STATUS.INTERNAL_SERVER_ERROR, 'Failed to fetch reminder settings');
     }
-
-    const settings = data as IReminderSetting[];
-
-    const response: IReminderSettingsResponse = {
-      firearms: null,
-      vehicles: null,
-      certificates: null,
-      psira_officers: null,
-      driver_licences: null,
-    };
-
-    for (const setting of settings) {
-      response[setting.entity_type] = setting;
-    }
-
-    return response;
   }
 
   public static async upsertSetting(data: IUpsertReminderSettingData): Promise<IReminderSetting> {
-    const { data: setting, error } = await supabaseAdmin
-      .from('reminder_settings')
-      .upsert({
-        profile_id: data.profile_id,
-        entity_type: data.entity_type,
-        reminder_days: data.reminder_days,
-        is_enabled: data.is_enabled,
-      }, {
-        onConflict: 'profile_id,entity_type',
-      })
-      .select()
-      .single();
+    try {
+      const [setting] = await db
+        .insert(reminderSettings)
+        .values({
+          profile_id: data.profile_id,
+          entity_type: data.entity_type,
+          reminder_days: data.reminder_days,
+          is_enabled: data.is_enabled,
+        })
+        .onConflictDoUpdate({
+          target: [reminderSettings.profile_id, reminderSettings.entity_type],
+          set: {
+            reminder_days: data.reminder_days,
+            is_enabled: data.is_enabled,
+            updated_at: new Date(),
+          },
+        })
+        .returning();
 
-    if (error) {
-      Logger.error('Failed to upsert reminder setting', 'REMINDERS_SERVICE', { error: error.message });
+      if (!setting) {
+        throw new HttpError(HTTP_STATUS.INTERNAL_SERVER_ERROR, 'Failed to update reminder setting');
+      }
+
+      return RemindersService.mapToSetting(setting);
+    } catch (error) {
+      if (error instanceof HttpError) {
+        throw error;
+      }
+      Logger.error('Failed to upsert reminder setting', 'REMINDERS_SERVICE', { error: (error as Error).message });
       throw new HttpError(HTTP_STATUS.INTERNAL_SERVER_ERROR, 'Failed to update reminder setting');
     }
-
-    return setting as IReminderSetting;
   }
 
   public static async bulkUpsertSettings(
     userId: string,
     settings: Array<{ entity_type: EntityType; reminder_days: number[]; is_enabled: boolean }>,
   ): Promise<IReminderSettingsResponse> {
-    const upsertData = settings.map((setting) => ({
-      profile_id: userId,
-      entity_type: setting.entity_type,
-      reminder_days: setting.reminder_days,
-      is_enabled: setting.is_enabled,
-    }));
+    try {
+      const upsertData = settings.map((setting) => ({
+        profile_id: userId,
+        entity_type: setting.entity_type,
+        reminder_days: setting.reminder_days,
+        is_enabled: setting.is_enabled,
+      }));
 
-    const { error } = await supabaseAdmin
-      .from('reminder_settings')
-      .upsert(upsertData, {
-        onConflict: 'profile_id,entity_type',
-      });
+      await Promise.all(upsertData.map((item) =>
+        db
+          .insert(reminderSettings)
+          .values(item)
+          .onConflictDoUpdate({
+            target: [reminderSettings.profile_id, reminderSettings.entity_type],
+            set: {
+              reminder_days: item.reminder_days,
+              is_enabled: item.is_enabled,
+              updated_at: new Date(),
+            },
+          }),
+      ));
 
-    if (error) {
-      Logger.error('Failed to bulk upsert reminder settings', 'REMINDERS_SERVICE', { error: error.message });
+      return this.getAllSettings(userId);
+    } catch (error) {
+      if (error instanceof HttpError) {
+        throw error;
+      }
+      Logger.error('Failed to bulk upsert reminder settings', 'REMINDERS_SERVICE', { error: (error as Error).message });
       throw new HttpError(HTTP_STATUS.INTERNAL_SERVER_ERROR, 'Failed to update reminder settings');
     }
-
-    return this.getAllSettings(userId);
   }
 
   public static async deleteSetting(userId: string, entityType: EntityType): Promise<void> {
-    const { error: findError } = await supabaseAdmin
-      .from('reminder_settings')
-      .select('id')
-      .eq('profile_id', userId)
-      .eq('entity_type', entityType)
-      .single();
+    try {
+      const [existing] = await db
+        .select({ id: reminderSettings.id })
+        .from(reminderSettings)
+        .where(and(eq(reminderSettings.profile_id, userId), eq(reminderSettings.entity_type, entityType)));
 
-    if (findError) {
-      Logger.warn('Reminder setting not found for deletion', 'REMINDERS_SERVICE', { userId, entityType });
-      throw new HttpError(HTTP_STATUS.NOT_FOUND, 'Reminder setting not found');
-    }
+      if (!existing) {
+        Logger.warn('Reminder setting not found for deletion', 'REMINDERS_SERVICE', { userId, entityType });
+        throw new HttpError(HTTP_STATUS.NOT_FOUND, 'Reminder setting not found');
+      }
 
-    const { error: deleteError } = await supabaseAdmin
-      .from('reminder_settings')
-      .delete()
-      .eq('profile_id', userId)
-      .eq('entity_type', entityType);
-
-    if (deleteError) {
-      Logger.error('Failed to delete reminder setting', 'REMINDERS_SERVICE', { error: deleteError.message });
+      await db
+        .delete(reminderSettings)
+        .where(and(eq(reminderSettings.profile_id, userId), eq(reminderSettings.entity_type, entityType)));
+    } catch (error) {
+      if (error instanceof HttpError) {
+        throw error;
+      }
+      Logger.error('Failed to delete reminder setting', 'REMINDERS_SERVICE', { error: (error as Error).message });
       throw new HttpError(HTTP_STATUS.INTERNAL_SERVER_ERROR, 'Failed to delete reminder setting');
     }
   }
 
   public static async getAllEnabledSettings(): Promise<IReminderSetting[]> {
-    const { data, error } = await supabaseAdmin
-      .from('reminder_settings')
-      .select('*')
-      .eq('is_enabled', true);
+    try {
+      const data = await db
+        .select()
+        .from(reminderSettings)
+        .where(eq(reminderSettings.is_enabled, true));
 
-    if (error) {
-      Logger.error('Failed to fetch all enabled reminder settings', 'REMINDERS_SERVICE', { error: error.message });
+      return data.map((row) => RemindersService.mapToSetting(row));
+    } catch (error) {
+      Logger.error('Failed to fetch all enabled reminder settings', 'REMINDERS_SERVICE', { error: (error as Error).message });
       throw new HttpError(HTTP_STATUS.INTERNAL_SERVER_ERROR, 'Failed to fetch reminder settings');
     }
-
-    return data as IReminderSetting[];
   }
 
   public static async getExpiringItems(
@@ -133,41 +168,43 @@ export default class RemindersService {
     profileId: string,
     reminderDays: number[],
   ): Promise<IExpiringItem[]> {
-    const tableName = ENTITY_TABLE_MAP[entityType];
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    try {
+      const table = ENTITY_DRIZZLE_TABLE_MAP[entityType];
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
 
-    const targetDates = reminderDays.map((days) => {
-      const date = new Date(today);
-      date.setDate(date.getDate() + days);
-      return date.toISOString().split('T')[0];
-    });
+      const targetDates = reminderDays.map((days) => {
+        const date = new Date(today);
+        date.setDate(date.getDate() + days);
+        return date.toISOString().split('T')[0] ?? '';
+      });
 
-    const { data, error } = await supabaseAdmin
-      .from(tableName)
-      .select('*')
-      .eq('profile_id', profileId)
-      .in('expiry_date', targetDates);
+      const data = await db
+        .select()
+        .from(table)
+        .where(and(
+          eq(table.profile_id, profileId),
+          inArray(table.expiry_date, targetDates),
+        ));
 
-    if (error) {
-      Logger.error(`Failed to fetch expiring ${entityType}`, 'REMINDERS_SERVICE', { error: error.message });
+      return (data as Record<string, unknown>[]).map((item) => {
+        const expiryDate = new Date(item.expiry_date as string);
+        expiryDate.setHours(0, 0, 0, 0);
+        const daysUntilExpiry = Math.round((expiryDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+
+        return {
+          id: item.id as string,
+          entityType,
+          expiryDate: item.expiry_date as string,
+          daysUntilExpiry,
+          name: RemindersService.getItemName(entityType, item),
+          details: RemindersService.getItemDetails(entityType, item),
+        };
+      });
+    } catch (error) {
+      Logger.error(`Failed to fetch expiring ${entityType}`, 'REMINDERS_SERVICE', { error: (error as Error).message });
       return [];
     }
-
-    return data.map((item: Record<string, unknown>) => {
-      const expiryDate = new Date(item.expiry_date as string);
-      expiryDate.setHours(0, 0, 0, 0);
-      const daysUntilExpiry = Math.round((expiryDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-
-      return {
-        id: item.id as string,
-        entityType,
-        expiryDate: item.expiry_date as string,
-        daysUntilExpiry,
-        name: RemindersService.getItemName(entityType, item),
-        details: RemindersService.getItemDetails(entityType, item),
-      };
-    });
   }
 
   private static getItemName(entityType: EntityType, item: Record<string, unknown>): string {
@@ -204,46 +241,70 @@ export default class RemindersService {
     limit = 1000,
     cursorId?: string,
   ): Promise<IBatchReminderResult> {
-    const { data, error } = await supabaseAdmin.rpc('get_expiring_reminders_batch', {
-      p_limit: limit + 1,
-      p_cursor_id: cursorId ?? null,
-    });
+    try {
+      const data = await db.execute<{
+        id: string;
+        profile_id: string;
+        email: string;
+        entity_type: string;
+        entity_id: string;
+        item_name: string;
+        expiry_date: string;
+        days_until_expiry: number;
+        details: Record<string, unknown>;
+      }>(
+        sql`SELECT * FROM get_expiring_reminders_batch(${limit + 1}, ${cursorId ?? null})`,
+      );
 
-    if (error) {
-      Logger.error('Failed to fetch expiring reminders batch', 'REMINDERS_SERVICE', { error: error.message });
+      const rows = data as unknown as Array<{
+        id: string;
+        profile_id: string;
+        email: string;
+        entity_type: string;
+        entity_id: string;
+        item_name: string;
+        expiry_date: string;
+        days_until_expiry: number;
+        details: Record<string, unknown>;
+      }>;
+
+      const hasMore = rows.length > limit;
+      const items: IBatchReminderItem[] = rows.slice(0, limit).map((row) => ({
+        id: row.id,
+        profileId: row.profile_id,
+        email: row.email,
+        entityType: row.entity_type as EntityType,
+        entityId: row.entity_id,
+        itemName: row.item_name,
+        expiryDate: row.expiry_date,
+        daysUntilExpiry: row.days_until_expiry,
+        details: row.details,
+      }));
+
+      const lastItem = items[items.length - 1];
+
+      return {
+        items,
+        nextCursor: hasMore && lastItem ? lastItem.id : null,
+      };
+    } catch (error) {
+      if (error instanceof HttpError) {
+        throw error;
+      }
+      Logger.error('Failed to fetch expiring reminders batch', 'REMINDERS_SERVICE', { error: (error as Error).message });
       throw new HttpError(HTTP_STATUS.INTERNAL_SERVER_ERROR, 'Failed to fetch reminders');
     }
+  }
 
-    const rows = (data ?? []) as Array<{
-      id: string;
-      profile_id: string;
-      email: string;
-      entity_type: string;
-      entity_id: string;
-      item_name: string;
-      expiry_date: string;
-      days_until_expiry: number;
-      details: Record<string, unknown>;
-    }>;
-
-    const hasMore = rows.length > limit;
-    const items: IBatchReminderItem[] = rows.slice(0, limit).map((row) => ({
-      id: row.id,
-      profileId: row.profile_id,
-      email: row.email,
-      entityType: row.entity_type as EntityType,
-      entityId: row.entity_id,
-      itemName: row.item_name,
-      expiryDate: row.expiry_date,
-      daysUntilExpiry: row.days_until_expiry,
-      details: row.details,
-    }));
-
-    const lastItem = items[items.length - 1];
-
+  private static mapToSetting(row: typeof reminderSettings.$inferSelect): IReminderSetting {
     return {
-      items,
-      nextCursor: hasMore && lastItem ? lastItem.id : null,
+      id: row.id,
+      profile_id: row.profile_id,
+      entity_type: row.entity_type as EntityType,
+      reminder_days: row.reminder_days,
+      is_enabled: row.is_enabled,
+      created_at: row.created_at.toISOString(),
+      updated_at: row.updated_at.toISOString(),
     };
   }
 }

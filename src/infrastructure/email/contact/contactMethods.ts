@@ -2,7 +2,7 @@ import type { IContactForm } from './types.js';
 import { HttpError } from '../../../shared/types/errors/appError.js';
 import { HTTP_STATUS } from '../../../shared/constants/httpStatus.js';
 import { Logger } from '../../../shared/utils/logger.js';
-import { EmailService } from '../../email/emailService.js';
+import { EmailService } from '../emailService.js';
 
 export default class ContactService {
   public static async sendContactForm(data: IContactForm): Promise<{ message: string }> {

@@ -10,7 +10,9 @@ import type {
 import { HttpError } from '../shared/types/errors/appError.js';
 import { HTTP_STATUS } from '../shared/constants/httpStatus.js';
 import { Logger } from '../shared/utils/logger.js';
-import { supabaseAdmin } from '../infrastructure/database/supabaseClient.js';
+import db from '../infrastructure/database/drizzleClient.js';
+import { profiles } from '../infrastructure/database/schema/index.js';
+import { eq } from 'drizzle-orm';
 import { PaystackService } from '../infrastructure/payment/paystackService.js';
 import type { IPaystackWebhookPayload } from '../infrastructure/payment/types.js';
 
@@ -41,13 +43,12 @@ export class SubscriptionUseCases {
       }
     }
 
-    const { data: profile, error: profileError } = await supabaseAdmin
-      .from('profiles')
-      .select('id, email')
-      .eq('id', userId)
-      .single();
+    const [profile] = await db
+      .select({ id: profiles.id, email: profiles.email })
+      .from(profiles)
+      .where(eq(profiles.id, userId));
 
-    if (profileError) {
+    if (!profile) {
       throw new HttpError(HTTP_STATUS.NOT_FOUND, 'User profile not found');
     }
 
@@ -228,12 +229,10 @@ export class SubscriptionUseCases {
   public static async refundSubscription(userId: string, subscriptionId: string): Promise<void> {
     const subscription = await SubscriptionsService.getSubscriptionById(subscriptionId);
 
-    // Validate ownership
     if (subscription.profile_id !== userId) {
       throw new HttpError(HTTP_STATUS.FORBIDDEN, 'Not authorized to refund this subscription');
     }
 
-    // Validate status
     if (subscription.status === 'refunded') {
       throw new HttpError(HTTP_STATUS.BAD_REQUEST, 'Subscription has already been refunded');
     }
@@ -241,7 +240,6 @@ export class SubscriptionUseCases {
       throw new HttpError(HTTP_STATUS.BAD_REQUEST, 'Only active subscriptions can be refunded');
     }
 
-    // Check 7-day refund window
     const createdAt = new Date(subscription.created_at);
     const now = new Date();
     const daysSinceCreation = Math.floor((now.getTime() - createdAt.getTime()) / (1000 * 60 * 60 * 24));
@@ -253,12 +251,10 @@ export class SubscriptionUseCases {
       );
     }
 
-    // Validate transaction reference exists
     if (!subscription.paystack_transaction_reference) {
       throw new HttpError(HTTP_STATUS.BAD_REQUEST, 'No transaction reference found for this subscription');
     }
 
-    // Cancel Paystack subscription first if exists
     if (subscription.paystack_subscription_code && subscription.paystack_email_token) {
       const cancelResult = await PaystackService.disableSubscription(
         subscription.paystack_subscription_code,
@@ -270,7 +266,6 @@ export class SubscriptionUseCases {
       }
     }
 
-    // Process refund with Paystack
     const refundResult = await PaystackService.createRefund({
       transaction: subscription.paystack_transaction_reference,
       merchant_note: `Refund requested by user within ${SubscriptionUseCases.REFUND_WINDOW_DAYS}-day window`,
@@ -281,7 +276,6 @@ export class SubscriptionUseCases {
       throw new HttpError(HTTP_STATUS.BAD_GATEWAY, 'Failed to process refund with payment provider');
     }
 
-    // Mark subscription as refunded
     await SubscriptionsService.markRefunded(subscriptionId);
   }
 
