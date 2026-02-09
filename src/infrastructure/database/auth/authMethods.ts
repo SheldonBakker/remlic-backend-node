@@ -3,6 +3,7 @@ import { supabase, supabaseAdmin } from '../supabaseClient.js';
 import { HttpError } from '../../../shared/types/errors/appError.js';
 import { HTTP_STATUS } from '../../../shared/constants/httpStatus.js';
 import { Logger } from '../../../shared/utils/logger.js';
+import { FreeTrialService } from '../../../utils/freeTrialService.js';
 
 export default class AuthService {
   public static async signup(data: ISignupRequest): Promise<ISignupResponse> {
@@ -46,6 +47,8 @@ export default class AuthService {
       Logger.error('Failed to create profile', 'AUTH_SERVICE', { error: profileError.message });
       throw new HttpError(HTTP_STATUS.INTERNAL_SERVER_ERROR, 'User created but profile creation failed');
     }
+
+    await FreeTrialService.grantFreeTrial(authData.user.id);
 
     return {
       user: {

@@ -26,13 +26,19 @@ export class SubscriptionUseCases {
   ): Promise<IInitializeSubscriptionResponse> {
     const existingSubscription = await SubscriptionsService.getUserActiveSubscription(userId);
     if (existingSubscription) {
-      if (existingSubscription.package_id === request.package_id) {
-        throw new HttpError(HTTP_STATUS.CONFLICT, 'You already have an active subscription to this package');
+      const isFreeTrial = existingSubscription.app_packages.slug === 'free-trial';
+      if (isFreeTrial) {
+        await SubscriptionsService.cancelSubscription(existingSubscription.id);
+        Logger.info(`Auto-cancelled free trial for user ${userId} upgrading to paid plan`, 'SUBSCRIPTION_USE_CASES');
+      } else {
+        if (existingSubscription.package_id === request.package_id) {
+          throw new HttpError(HTTP_STATUS.CONFLICT, 'You already have an active subscription to this package');
+        }
+        throw new HttpError(
+          HTTP_STATUS.CONFLICT,
+          'You already have an active subscription. Use the change plan endpoint to switch packages.',
+        );
       }
-      throw new HttpError(
-        HTTP_STATUS.CONFLICT,
-        'You already have an active subscription. Use the change plan endpoint to switch packages.',
-      );
     }
 
     const { data: profile, error: profileError } = await supabaseAdmin
