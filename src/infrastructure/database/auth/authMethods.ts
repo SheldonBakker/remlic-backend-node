@@ -5,8 +5,8 @@ import { profiles } from '../schema/index.js';
 import { eq } from 'drizzle-orm';
 import { HttpError } from '../../../shared/types/errors/appError.js';
 import { HTTP_STATUS } from '../../../shared/constants/httpStatus.js';
-import { Logger } from '../../../shared/utils/logger.js';
-import { FreeTrialService } from '../../../utils/freeTrialService.js';
+import { Logger } from '../../../shared/utils/logging/logger.js';
+import { FreeTrialService } from '../../../usecases/freeTrialService.js';
 
 export default class AuthService {
   public static async signup(data: ISignupRequest): Promise<ISignupResponse> {

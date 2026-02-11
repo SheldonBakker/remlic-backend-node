@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import PsiraController from '../controllers/psiraController.js';
-import { requestHandler } from '../middleware/requestHandler.js';
+
 import { requireRole, UserRole } from '../middleware/authMiddleware.js';
 import { requireRouteSubscription } from '../middleware/subscriptionMiddleware.js';
 
@@ -191,7 +191,7 @@ const router = Router();
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.get('/', requireRole(UserRole.USER), requireSubscription, requestHandler(PsiraController.getOfficers));
+router.get('/', requireRole(UserRole.USER), requireSubscription, (PsiraController.getOfficers));
 
 /**
  * @swagger
@@ -250,7 +250,7 @@ router.get('/', requireRole(UserRole.USER), requireSubscription, requestHandler(
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.post('/', requireRole(UserRole.USER), requireSubscription, requestHandler(PsiraController.createOfficer));
+router.post('/', requireRole(UserRole.USER), requireSubscription, (PsiraController.createOfficer));
 
 /**
  * @swagger
@@ -314,7 +314,7 @@ router.post('/', requireRole(UserRole.USER), requireSubscription, requestHandler
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.get('/lookup/:idNumber', requireRole(UserRole.USER), requireSubscription, requestHandler(PsiraController.getApplicantDetails));
+router.get('/lookup/:idNumber', requireRole(UserRole.USER), requireSubscription, (PsiraController.getApplicantDetails));
 
 /**
  * @swagger
@@ -370,6 +370,6 @@ router.get('/lookup/:idNumber', requireRole(UserRole.USER), requireSubscription,
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.delete('/:id', requireRole(UserRole.USER), requireSubscription, requestHandler(PsiraController.deleteOfficer));
+router.delete('/:id', requireRole(UserRole.USER), requireSubscription, (PsiraController.deleteOfficer));
 
 export default router;

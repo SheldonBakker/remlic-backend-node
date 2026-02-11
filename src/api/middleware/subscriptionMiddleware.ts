@@ -5,7 +5,7 @@ import type { EntityType } from '../../infrastructure/database/reminders/types.j
 import { HTTP_STATUS } from '../../shared/constants/httpStatus.js';
 import { ENTITY_TO_PERMISSION } from '../../shared/constants/entities.js';
 import { UserRole } from '../../shared/types/auth.js';
-import { Logger } from '../../shared/utils/logger.js';
+import { Logger } from '../../shared/utils/logging/logger.js';
 import { ResponseUtil } from '../../shared/utils/response.js';
 import SubscriptionsService from '../../infrastructure/database/subscriptions/subscriptionsMethods.js';
 import { getRouteFeature, type SubscriptionFeature } from './subscriptionRouteConfig.js';

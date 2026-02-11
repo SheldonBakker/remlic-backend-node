@@ -4,7 +4,7 @@ import { appPackages, appPermissions } from '../schema/index.js';
 import { eq, or, lt, and, desc, type SQL } from 'drizzle-orm';
 import { HttpError } from '../../../shared/types/errors/appError.js';
 import { HTTP_STATUS } from '../../../shared/constants/httpStatus.js';
-import { Logger } from '../../../shared/utils/logger.js';
+import { Logger } from '../../../shared/utils/logging/logger.js';
 import { PaginationUtil, type ICursorParams, type IPaginatedResult } from '../../../shared/utils/pagination.js';
 import { buildPartialUpdate } from '../../../shared/utils/updateBuilder.js';
 
@@ -154,7 +154,8 @@ export default class PackagesService {
       if (error instanceof HttpError) {
         throw error;
       }
-      if ((error as Record<string, unknown>).code === '23505') {
+      const cause = (error as Record<string, unknown>).cause as Record<string, unknown> | undefined;
+      if (cause?.code === '23505' || (error as Record<string, unknown>).code === '23505') {
         Logger.warn('Package slug already exists', 'PACKAGES_SERVICE', { slug: data.slug });
         throw new HttpError(HTTP_STATUS.CONFLICT, 'Package with this slug already exists');
       }
@@ -215,7 +216,8 @@ export default class PackagesService {
       if (error instanceof HttpError) {
         throw error;
       }
-      if ((error as Record<string, unknown>).code === '23505') {
+      const cause = (error as Record<string, unknown>).cause as Record<string, unknown> | undefined;
+      if (cause?.code === '23505' || (error as Record<string, unknown>).code === '23505') {
         Logger.warn('Package slug already exists', 'PACKAGES_SERVICE', { slug: data.slug });
         throw new HttpError(HTTP_STATUS.CONFLICT, 'Package with this slug already exists');
       }

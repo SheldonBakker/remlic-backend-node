@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import WebhooksController from '../controllers/webhooksController.js';
-import { requestHandler } from '../middleware/requestHandler.js';
+
 
 const router = Router();
 
@@ -52,6 +52,6 @@ const router = Router();
  *       401:
  *         description: Unauthorized - Invalid signature
  */
-router.post('/paystack', requestHandler(WebhooksController.handlePaystackWebhook));
+router.post('/paystack', (WebhooksController.handlePaystackWebhook));
 
 export default router;

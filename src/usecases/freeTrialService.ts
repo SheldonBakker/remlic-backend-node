@@ -1,7 +1,7 @@
 import db from '../infrastructure/database/drizzleClient.js';
 import { appPackages, appSubscriptions } from '../infrastructure/database/schema/index.js';
 import { eq, and } from 'drizzle-orm';
-import { Logger } from '../shared/utils/logger.js';
+import { Logger } from '../shared/utils/logging/logger.js';
 
 const FREE_TRIAL_SLUG = 'free-trial';
 

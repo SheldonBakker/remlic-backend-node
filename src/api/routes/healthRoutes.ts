@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import HealthController from '../controllers/healthController.js';
-import { requestHandler } from '../middleware/requestHandler.js';
+
 
 const router = Router();
 
@@ -52,6 +52,6 @@ const router = Router();
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.get('/', requestHandler(HealthController.check));
+router.get('/', (HealthController.check));
 
 export default router;

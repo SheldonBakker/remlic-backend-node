@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import SubscriptionsController from '../controllers/subscriptionsController.js';
-import { requestHandler } from '../middleware/requestHandler.js';
+
 import { requireRole, UserRole } from '../middleware/authMiddleware.js';
 
 const router = Router();
@@ -174,7 +174,7 @@ const router = Router();
  *       401:
  *         description: Unauthorized - Invalid or missing token
  */
-router.get('/me', requireRole(UserRole.USER, UserRole.ADMIN), requestHandler(SubscriptionsController.getMySubscriptions));
+router.get('/me', requireRole(UserRole.USER, UserRole.ADMIN), (SubscriptionsController.getMySubscriptions));
 
 /**
  * @swagger
@@ -211,7 +211,7 @@ router.get('/me', requireRole(UserRole.USER, UserRole.ADMIN), requestHandler(Sub
  *       401:
  *         description: Unauthorized - Invalid or missing token
  */
-router.get('/me/permissions', requireRole(UserRole.USER, UserRole.ADMIN), requestHandler(SubscriptionsController.getMyPermissions));
+router.get('/me/permissions', requireRole(UserRole.USER, UserRole.ADMIN), (SubscriptionsController.getMyPermissions));
 
 /**
  * @swagger
@@ -249,7 +249,7 @@ router.get('/me/permissions', requireRole(UserRole.USER, UserRole.ADMIN), reques
  *       401:
  *         description: Unauthorized - Invalid or missing token
  */
-router.get('/me/current', requireRole(UserRole.USER, UserRole.ADMIN), requestHandler(SubscriptionsController.getMyCurrentSubscription));
+router.get('/me/current', requireRole(UserRole.USER, UserRole.ADMIN), (SubscriptionsController.getMyCurrentSubscription));
 
 /**
  * @swagger
@@ -313,7 +313,7 @@ router.get('/me/current', requireRole(UserRole.USER, UserRole.ADMIN), requestHan
  *       401:
  *         description: Unauthorized - Invalid or missing token
  */
-router.post('/initialize', requireRole(UserRole.USER, UserRole.ADMIN), requestHandler(SubscriptionsController.initializeSubscription));
+router.post('/initialize', requireRole(UserRole.USER, UserRole.ADMIN), (SubscriptionsController.initializeSubscription));
 
 /**
  * @swagger
@@ -363,7 +363,7 @@ router.post('/initialize', requireRole(UserRole.USER, UserRole.ADMIN), requestHa
  *       404:
  *         description: Subscription not found
  */
-router.post('/me/:id/cancel', requireRole(UserRole.USER, UserRole.ADMIN), requestHandler(SubscriptionsController.cancelMySubscription));
+router.post('/me/:id/cancel', requireRole(UserRole.USER, UserRole.ADMIN), (SubscriptionsController.cancelMySubscription));
 
 /**
  * @swagger
@@ -417,7 +417,7 @@ router.post('/me/:id/cancel', requireRole(UserRole.USER, UserRole.ADMIN), reques
  *       502:
  *         description: Bad gateway - Failed to process refund with payment provider
  */
-router.post('/me/:id/refund', requireRole(UserRole.USER, UserRole.ADMIN), requestHandler(SubscriptionsController.refundMySubscription));
+router.post('/me/:id/refund', requireRole(UserRole.USER, UserRole.ADMIN), (SubscriptionsController.refundMySubscription));
 
 /**
  * @swagger
@@ -493,7 +493,7 @@ router.post('/me/:id/refund', requireRole(UserRole.USER, UserRole.ADMIN), reques
  *       404:
  *         description: Subscription or package not found
  */
-router.post('/me/:id/change-plan', requireRole(UserRole.USER, UserRole.ADMIN), requestHandler(SubscriptionsController.changeSubscriptionPlan));
+router.post('/me/:id/change-plan', requireRole(UserRole.USER, UserRole.ADMIN), (SubscriptionsController.changeSubscriptionPlan));
 
 /**
  * @swagger
@@ -566,7 +566,7 @@ router.post('/me/:id/change-plan', requireRole(UserRole.USER, UserRole.ADMIN), r
  *       403:
  *         description: Forbidden - Admin access required
  */
-router.get('/', requireRole(UserRole.ADMIN), requestHandler(SubscriptionsController.getSubscriptions));
+router.get('/', requireRole(UserRole.ADMIN), (SubscriptionsController.getSubscriptions));
 
 /**
  * @swagger
@@ -615,7 +615,7 @@ router.get('/', requireRole(UserRole.ADMIN), requestHandler(SubscriptionsControl
  *       404:
  *         description: Subscription not found
  */
-router.get('/:id', requireRole(UserRole.ADMIN), requestHandler(SubscriptionsController.getSubscriptionById));
+router.get('/:id', requireRole(UserRole.ADMIN), (SubscriptionsController.getSubscriptionById));
 
 /**
  * @swagger
@@ -662,7 +662,7 @@ router.get('/:id', requireRole(UserRole.ADMIN), requestHandler(SubscriptionsCont
  *       403:
  *         description: Forbidden - Admin access required
  */
-router.post('/', requireRole(UserRole.ADMIN), requestHandler(SubscriptionsController.createSubscription));
+router.post('/', requireRole(UserRole.ADMIN), (SubscriptionsController.createSubscription));
 
 /**
  * @swagger
@@ -719,7 +719,7 @@ router.post('/', requireRole(UserRole.ADMIN), requestHandler(SubscriptionsContro
  *       404:
  *         description: Subscription not found
  */
-router.patch('/:id', requireRole(UserRole.ADMIN), requestHandler(SubscriptionsController.updateSubscription));
+router.patch('/:id', requireRole(UserRole.ADMIN), (SubscriptionsController.updateSubscription));
 
 /**
  * @swagger
@@ -769,6 +769,6 @@ router.patch('/:id', requireRole(UserRole.ADMIN), requestHandler(SubscriptionsCo
  *       404:
  *         description: Subscription not found
  */
-router.delete('/:id', requireRole(UserRole.ADMIN), requestHandler(SubscriptionsController.cancelSubscription));
+router.delete('/:id', requireRole(UserRole.ADMIN), (SubscriptionsController.cancelSubscription));
 
 export default router;

@@ -1,6 +1,6 @@
 import { randomUUID } from 'crypto';
 import { config } from '../config/env.config.js';
-import { Logger } from '../../shared/utils/logger.js';
+import { Logger } from '../../shared/utils/logging/logger.js';
 import type { IKlaviyoEventOptions, IEmailResult, IBulkEventItem } from './types.js';
 
 const KLAVIYO_API_BASE = 'https://a.klaviyo.com/api';

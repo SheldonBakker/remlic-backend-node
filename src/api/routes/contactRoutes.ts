@@ -1,6 +1,5 @@
 import { Router } from 'express';
 import ContactController from '../controllers/contactController.js';
-import { requestHandler } from '../middleware/requestHandler.js';
 
 const router = Router();
 
@@ -74,6 +73,6 @@ const router = Router();
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.post('/', requestHandler(ContactController.sendContactForm));
+router.post('/', (ContactController.sendContactForm));
 
 export default router;

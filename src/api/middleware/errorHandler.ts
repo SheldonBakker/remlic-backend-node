@@ -1,7 +1,7 @@
 import type { Request, Response, NextFunction } from 'express';
 import { HttpError } from '../../shared/types/errors/appError.js';
 import { ResponseUtil } from '../../shared/utils/response.js';
-import { Logger } from '../../shared/utils/logger.js';
+import { Logger } from '../../shared/utils/logging/logger.js';
 import { HTTP_STATUS } from '../../shared/constants/httpStatus.js';
 
 export const errorHandler = (

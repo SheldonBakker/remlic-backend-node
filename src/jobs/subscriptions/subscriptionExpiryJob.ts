@@ -1,6 +1,6 @@
 import type { IJobResult } from '../types.js';
 import { CronService } from '../cronService.js';
-import { Logger } from '../../shared/utils/logger.js';
+import { Logger } from '../../shared/utils/logging/logger.js';
 import SubscriptionsService from '../../infrastructure/database/subscriptions/subscriptionsMethods.js';
 
 const JOB_NAME = 'subscription-expiry';

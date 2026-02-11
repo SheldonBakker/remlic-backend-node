@@ -1,6 +1,5 @@
 import { Router } from 'express';
 import FirearmsController from '../controllers/firearmsController.js';
-import { requestHandler } from '../middleware/requestHandler.js';
 import { requireRole, UserRole } from '../middleware/authMiddleware.js';
 import { requireRouteSubscription } from '../middleware/subscriptionMiddleware.js';
 
@@ -188,7 +187,7 @@ const router = Router();
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.get('/', requireRole(UserRole.USER), requireSubscription, requestHandler(FirearmsController.getFirearms));
+router.get('/', requireRole(UserRole.USER), requireSubscription, (FirearmsController.getFirearms));
 
 /**
  * @swagger
@@ -243,7 +242,7 @@ router.get('/', requireRole(UserRole.USER), requireSubscription, requestHandler(
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.get('/:id', requireRole(UserRole.USER), requireSubscription, requestHandler(FirearmsController.getFirearmById));
+router.get('/:id', requireRole(UserRole.USER), requireSubscription, (FirearmsController.getFirearmById));
 
 /**
  * @swagger
@@ -296,7 +295,7 @@ router.get('/:id', requireRole(UserRole.USER), requireSubscription, requestHandl
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.post('/', requireRole(UserRole.USER), requireSubscription, requestHandler(FirearmsController.createFirearm));
+router.post('/', requireRole(UserRole.USER), requireSubscription, (FirearmsController.createFirearm));
 
 /**
  * @swagger
@@ -363,7 +362,7 @@ router.post('/', requireRole(UserRole.USER), requireSubscription, requestHandler
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.patch('/:id', requireRole(UserRole.USER), requireSubscription, requestHandler(FirearmsController.updateFirearm));
+router.patch('/:id', requireRole(UserRole.USER), requireSubscription, (FirearmsController.updateFirearm));
 
 /**
  * @swagger
@@ -419,6 +418,6 @@ router.patch('/:id', requireRole(UserRole.USER), requireSubscription, requestHan
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.delete('/:id', requireRole(UserRole.USER), requireSubscription, requestHandler(FirearmsController.deleteFirearm));
+router.delete('/:id', requireRole(UserRole.USER), requireSubscription, (FirearmsController.deleteFirearm));
 
 export default router;

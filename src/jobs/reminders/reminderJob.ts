@@ -1,7 +1,7 @@
 /* eslint-disable no-await-in-loop */
 import type { IJobResult, IJobError } from '../types.js';
 import { CronService } from '../cronService.js';
-import { Logger } from '../../shared/utils/logger.js';
+import { Logger } from '../../shared/utils/logging/logger.js';
 import RemindersService from '../../infrastructure/database/reminders/remindersMethods.js';
 import { EmailService } from '../../infrastructure/email/emailService.js';
 

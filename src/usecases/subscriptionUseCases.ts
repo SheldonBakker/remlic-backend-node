@@ -9,7 +9,7 @@ import type {
 } from '../infrastructure/database/subscriptions/types.js';
 import { HttpError } from '../shared/types/errors/appError.js';
 import { HTTP_STATUS } from '../shared/constants/httpStatus.js';
-import { Logger } from '../shared/utils/logger.js';
+import { Logger } from '../shared/utils/logging/logger.js';
 import db from '../infrastructure/database/drizzleClient.js';
 import { profiles } from '../infrastructure/database/schema/index.js';
 import { eq } from 'drizzle-orm';

@@ -1,6 +1,5 @@
 import { Router } from 'express';
 import AuthController from '../controllers/authController.js';
-import { requestHandler } from '../middleware/requestHandler.js';
 
 const router = Router();
 
@@ -92,6 +91,6 @@ const router = Router();
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.post('/signup', requestHandler(AuthController.signup));
+router.post('/signup', (AuthController.signup));
 
 export default router;

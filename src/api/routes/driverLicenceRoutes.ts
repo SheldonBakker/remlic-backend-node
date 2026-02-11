@@ -1,6 +1,5 @@
 import { Router } from 'express';
 import DriverLicenceController from '../controllers/driverLicenceController.js';
-import { requestHandler } from '../middleware/requestHandler.js';
 import { requireRole, UserRole } from '../middleware/authMiddleware.js';
 import { requireRouteSubscription } from '../middleware/subscriptionMiddleware.js';
 
@@ -178,7 +177,7 @@ const router = Router();
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.get('/', requireRole(UserRole.USER), requireSubscription, requestHandler(DriverLicenceController.getDriverLicences));
+router.get('/', requireRole(UserRole.USER), requireSubscription, (DriverLicenceController.getDriverLicences));
 
 /**
  * @swagger
@@ -233,7 +232,7 @@ router.get('/', requireRole(UserRole.USER), requireSubscription, requestHandler(
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.get('/:id', requireRole(UserRole.USER), requireSubscription, requestHandler(DriverLicenceController.getDriverLicenceById));
+router.get('/:id', requireRole(UserRole.USER), requireSubscription, (DriverLicenceController.getDriverLicenceById));
 
 /**
  * @swagger
@@ -286,7 +285,7 @@ router.get('/:id', requireRole(UserRole.USER), requireSubscription, requestHandl
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.post('/', requireRole(UserRole.USER), requireSubscription, requestHandler(DriverLicenceController.createDriverLicence));
+router.post('/', requireRole(UserRole.USER), requireSubscription, (DriverLicenceController.createDriverLicence));
 
 /**
  * @swagger
@@ -353,7 +352,7 @@ router.post('/', requireRole(UserRole.USER), requireSubscription, requestHandler
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.patch('/:id', requireRole(UserRole.USER), requireSubscription, requestHandler(DriverLicenceController.updateDriverLicence));
+router.patch('/:id', requireRole(UserRole.USER), requireSubscription, (DriverLicenceController.updateDriverLicence));
 
 /**
  * @swagger
@@ -409,6 +408,6 @@ router.patch('/:id', requireRole(UserRole.USER), requireSubscription, requestHan
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.delete('/:id', requireRole(UserRole.USER), requireSubscription, requestHandler(DriverLicenceController.deleteDriverLicence));
+router.delete('/:id', requireRole(UserRole.USER), requireSubscription, (DriverLicenceController.deleteDriverLicence));
 
 export default router;

@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import RemindersController from '../controllers/remindersController.js';
-import { requestHandler } from '../middleware/requestHandler.js';
+
 import { requireRole, UserRole } from '../middleware/authMiddleware.js';
 
 const router = Router();
@@ -141,7 +141,7 @@ const router = Router();
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.get('/', requireRole(UserRole.USER), requestHandler(RemindersController.getReminderSettings));
+router.get('/', requireRole(UserRole.USER), (RemindersController.getReminderSettings));
 
 /**
  * @swagger
@@ -194,7 +194,7 @@ router.get('/', requireRole(UserRole.USER), requestHandler(RemindersController.g
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.put('/', requireRole(UserRole.USER), requestHandler(RemindersController.bulkUpdateReminderSettings));
+router.put('/', requireRole(UserRole.USER), (RemindersController.bulkUpdateReminderSettings));
 
 /**
  * @swagger
@@ -255,7 +255,7 @@ router.put('/', requireRole(UserRole.USER), requestHandler(RemindersController.b
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.patch('/:entityType', requireRole(UserRole.USER), requestHandler(RemindersController.updateReminderSetting));
+router.patch('/:entityType', requireRole(UserRole.USER), (RemindersController.updateReminderSetting));
 
 /**
  * @swagger
@@ -317,6 +317,6 @@ router.patch('/:entityType', requireRole(UserRole.USER), requestHandler(Reminder
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.delete('/:entityType', requireRole(UserRole.USER), requestHandler(RemindersController.deleteReminderSetting));
+router.delete('/:entityType', requireRole(UserRole.USER), (RemindersController.deleteReminderSetting));
 
 export default router;

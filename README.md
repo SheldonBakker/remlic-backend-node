@@ -29,7 +29,7 @@ src/
 │   ├── middleware/               # Auth, error handling, request logging
 │   │   ├── auth.ts
 │   │   ├── errorHandler.ts
-│   │   └── requestHandler.ts
+│   │   └── .ts
 │   └── routes/                   # Route definitions with Swagger docs
 │       ├── authRoutes.ts
 │       ├── certificatesRoutes.ts

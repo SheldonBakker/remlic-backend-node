@@ -1,5 +1,5 @@
 import cron from 'node-cron';
-import { Logger } from '../shared/utils/logger.js';
+import { Logger } from '../shared/utils/logging/logger.js';
 
 export interface ICronJobOptions {
   name: string;

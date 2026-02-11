@@ -12,7 +12,7 @@ import { reminderSettings, firearms, vehicles, certificates, psiraOfficers, driv
 import { eq, and, inArray, sql } from 'drizzle-orm';
 import { HttpError } from '../../../shared/types/errors/appError.js';
 import { HTTP_STATUS } from '../../../shared/constants/httpStatus.js';
-import { Logger } from '../../../shared/utils/logger.js';
+import { Logger } from '../../../shared/utils/logging/logger.js';
 
 type EntityTable = typeof firearms | typeof vehicles | typeof certificates | typeof psiraOfficers | typeof driverLicences;
 

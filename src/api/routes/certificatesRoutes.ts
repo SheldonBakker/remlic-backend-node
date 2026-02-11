@@ -1,6 +1,5 @@
 import { Router } from 'express';
 import CertificatesController from '../controllers/certificatesController.js';
-import { requestHandler } from '../middleware/requestHandler.js';
 import { requireRole, UserRole } from '../middleware/authMiddleware.js';
 import { requireRouteSubscription } from '../middleware/subscriptionMiddleware.js';
 
@@ -177,7 +176,7 @@ const router = Router();
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.get('/', requireRole(UserRole.USER), requireSubscription, requestHandler(CertificatesController.getCertificates));
+router.get('/', requireRole(UserRole.USER), requireSubscription, (CertificatesController.getCertificates));
 
 /**
  * @swagger
@@ -232,7 +231,7 @@ router.get('/', requireRole(UserRole.USER), requireSubscription, requestHandler(
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.get('/:id', requireRole(UserRole.USER), requireSubscription, requestHandler(CertificatesController.getCertificateById));
+router.get('/:id', requireRole(UserRole.USER), requireSubscription, (CertificatesController.getCertificateById));
 
 /**
  * @swagger
@@ -285,7 +284,7 @@ router.get('/:id', requireRole(UserRole.USER), requireSubscription, requestHandl
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.post('/', requireRole(UserRole.USER), requireSubscription, requestHandler(CertificatesController.createCertificate));
+router.post('/', requireRole(UserRole.USER), requireSubscription, (CertificatesController.createCertificate));
 
 /**
  * @swagger
@@ -352,7 +351,7 @@ router.post('/', requireRole(UserRole.USER), requireSubscription, requestHandler
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.patch('/:id', requireRole(UserRole.USER), requireSubscription, requestHandler(CertificatesController.updateCertificate));
+router.patch('/:id', requireRole(UserRole.USER), requireSubscription, (CertificatesController.updateCertificate));
 
 /**
  * @swagger
@@ -408,6 +407,6 @@ router.patch('/:id', requireRole(UserRole.USER), requireSubscription, requestHan
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.delete('/:id', requireRole(UserRole.USER), requireSubscription, requestHandler(CertificatesController.deleteCertificate));
+router.delete('/:id', requireRole(UserRole.USER), requireSubscription, (CertificatesController.deleteCertificate));
 
 export default router;

@@ -4,7 +4,7 @@ import { appPermissions } from '../schema/index.js';
 import { eq, or, lt, and, desc } from 'drizzle-orm';
 import { HttpError } from '../../../shared/types/errors/appError.js';
 import { HTTP_STATUS } from '../../../shared/constants/httpStatus.js';
-import { Logger } from '../../../shared/utils/logger.js';
+import { Logger } from '../../../shared/utils/logging/logger.js';
 import { PaginationUtil, type ICursorParams, type IPaginatedResult } from '../../../shared/utils/pagination.js';
 import { buildPartialUpdate } from '../../../shared/utils/updateBuilder.js';
 
@@ -151,7 +151,8 @@ export default class PermissionsService {
       if (error instanceof HttpError) {
         throw error;
       }
-      if ((error as Record<string, unknown>).code === '23503') {
+      const cause = (error as Record<string, unknown>).cause as Record<string, unknown> | undefined;
+      if (cause?.code === '23503' || (error as Record<string, unknown>).code === '23503') {
         Logger.warn('Cannot delete permission with linked packages', 'PERMISSIONS_SERVICE', { permissionId });
         throw new HttpError(HTTP_STATUS.CONFLICT, 'Cannot delete permission that is linked to packages');
       }

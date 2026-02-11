@@ -3,7 +3,7 @@ import { ResponseUtil } from '../../shared/utils/response.js';
 import { HTTP_STATUS } from '../../shared/constants/httpStatus.js';
 import { HttpError } from '../../shared/types/errors/appError.js';
 import { SubscriptionUseCases } from '../../usecases/subscriptionUseCases.js';
-import { Logger } from '../../shared/utils/logger.js';
+import { Logger } from '../../shared/utils/logging/logger.js';
 import WebhooksService from '../../infrastructure/database/webhooks/webhooksMethods.js';
 import { PaystackService } from '../../infrastructure/payment/paystackService.js';
 import type { IPaystackWebhookPayload } from '../../infrastructure/payment/types.js';

@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import PermissionsController from '../controllers/permissionsController.js';
-import { requestHandler } from '../middleware/requestHandler.js';
+
 import { requireRole, UserRole } from '../middleware/authMiddleware.js';
 
 const router = Router();
@@ -146,7 +146,7 @@ const router = Router();
  *       403:
  *         description: Forbidden - Admin access required
  */
-router.get('/', requireRole(UserRole.ADMIN), requestHandler(PermissionsController.getPermissions));
+router.get('/', requireRole(UserRole.ADMIN), (PermissionsController.getPermissions));
 
 /**
  * @swagger
@@ -195,7 +195,7 @@ router.get('/', requireRole(UserRole.ADMIN), requestHandler(PermissionsControlle
  *       404:
  *         description: Permission not found
  */
-router.get('/:id', requireRole(UserRole.ADMIN), requestHandler(PermissionsController.getPermissionById));
+router.get('/:id', requireRole(UserRole.ADMIN), (PermissionsController.getPermissionById));
 
 /**
  * @swagger
@@ -242,7 +242,7 @@ router.get('/:id', requireRole(UserRole.ADMIN), requestHandler(PermissionsContro
  *       403:
  *         description: Forbidden - Admin access required
  */
-router.post('/', requireRole(UserRole.ADMIN), requestHandler(PermissionsController.createPermission));
+router.post('/', requireRole(UserRole.ADMIN), (PermissionsController.createPermission));
 
 /**
  * @swagger
@@ -299,7 +299,7 @@ router.post('/', requireRole(UserRole.ADMIN), requestHandler(PermissionsControll
  *       404:
  *         description: Permission not found
  */
-router.patch('/:id', requireRole(UserRole.ADMIN), requestHandler(PermissionsController.updatePermission));
+router.patch('/:id', requireRole(UserRole.ADMIN), (PermissionsController.updatePermission));
 
 /**
  * @swagger
@@ -351,6 +351,6 @@ router.patch('/:id', requireRole(UserRole.ADMIN), requestHandler(PermissionsCont
  *       409:
  *         description: Conflict - Permission is linked to packages
  */
-router.delete('/:id', requireRole(UserRole.ADMIN), requestHandler(PermissionsController.deletePermission));
+router.delete('/:id', requireRole(UserRole.ADMIN), (PermissionsController.deletePermission));
 
 export default router;

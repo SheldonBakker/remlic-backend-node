@@ -3,7 +3,7 @@ import db from '../drizzleClient.js';
 import { sql } from 'drizzle-orm';
 import { HttpError } from '../../../shared/types/errors/appError.js';
 import { HTTP_STATUS } from '../../../shared/constants/httpStatus.js';
-import { Logger } from '../../../shared/utils/logger.js';
+import { Logger } from '../../../shared/utils/logging/logger.js';
 import { PaginationUtil, type ICursorParams, type IPaginatedResult } from '../../../shared/utils/pagination.js';
 
 export default class DashboardService {

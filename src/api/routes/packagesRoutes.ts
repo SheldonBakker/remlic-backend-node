@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import PackagesController from '../controllers/packagesController.js';
-import { requestHandler } from '../middleware/requestHandler.js';
+
 import { requireRole, UserRole } from '../middleware/authMiddleware.js';
 
 const router = Router();
@@ -169,7 +169,7 @@ const router = Router();
  *       403:
  *         description: Forbidden - Admin access required
  */
-router.get('/', requireRole(UserRole.ADMIN), requestHandler(PackagesController.getPackages));
+router.get('/', requireRole(UserRole.ADMIN), (PackagesController.getPackages));
 
 /**
  * @swagger
@@ -215,7 +215,7 @@ router.get('/', requireRole(UserRole.ADMIN), requestHandler(PackagesController.g
  *       404:
  *         description: Package not found
  */
-router.get('/slug/:slug', requireRole(UserRole.USER, UserRole.ADMIN), requestHandler(PackagesController.getPackageBySlug));
+router.get('/slug/:slug', requireRole(UserRole.USER, UserRole.ADMIN), (PackagesController.getPackageBySlug));
 
 /**
  * @swagger
@@ -264,7 +264,7 @@ router.get('/slug/:slug', requireRole(UserRole.USER, UserRole.ADMIN), requestHan
  *       404:
  *         description: Package not found
  */
-router.get('/:id', requireRole(UserRole.ADMIN), requestHandler(PackagesController.getPackageById));
+router.get('/:id', requireRole(UserRole.ADMIN), (PackagesController.getPackageById));
 
 /**
  * @swagger
@@ -313,7 +313,7 @@ router.get('/:id', requireRole(UserRole.ADMIN), requestHandler(PackagesControlle
  *       409:
  *         description: Conflict - Package with this slug already exists
  */
-router.post('/', requireRole(UserRole.ADMIN), requestHandler(PackagesController.createPackage));
+router.post('/', requireRole(UserRole.ADMIN), (PackagesController.createPackage));
 
 /**
  * @swagger
@@ -372,7 +372,7 @@ router.post('/', requireRole(UserRole.ADMIN), requestHandler(PackagesController.
  *       409:
  *         description: Conflict - Package with this slug already exists
  */
-router.patch('/:id', requireRole(UserRole.ADMIN), requestHandler(PackagesController.updatePackage));
+router.patch('/:id', requireRole(UserRole.ADMIN), (PackagesController.updatePackage));
 
 /**
  * @swagger
@@ -422,6 +422,6 @@ router.patch('/:id', requireRole(UserRole.ADMIN), requestHandler(PackagesControl
  *       404:
  *         description: Package not found
  */
-router.delete('/:id', requireRole(UserRole.ADMIN), requestHandler(PackagesController.deletePackage));
+router.delete('/:id', requireRole(UserRole.ADMIN), (PackagesController.deletePackage));
 
 export default router;

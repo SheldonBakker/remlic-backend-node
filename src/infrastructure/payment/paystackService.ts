@@ -1,6 +1,6 @@
 import { createHmac } from 'crypto';
 import { config } from '../config/env.config.js';
-import { Logger } from '../../shared/utils/logger.js';
+import { Logger } from '../../shared/utils/logging/logger.js';
 import type {
   IPaystackInitializeRequest,
   IPaystackInitializeResponse,

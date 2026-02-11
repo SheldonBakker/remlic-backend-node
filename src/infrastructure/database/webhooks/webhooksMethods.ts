@@ -8,7 +8,7 @@ import { webhookEvents } from '../schema/index.js';
 import { eq, and } from 'drizzle-orm';
 import { HttpError } from '../../../shared/types/errors/appError.js';
 import { HTTP_STATUS } from '../../../shared/constants/httpStatus.js';
-import { Logger } from '../../../shared/utils/logger.js';
+import { Logger } from '../../../shared/utils/logging/logger.js';
 
 export default class WebhooksService {
   public static async storeWebhookEvent(
@@ -39,7 +39,8 @@ export default class WebhooksService {
       if (error instanceof HttpError) {
         throw error;
       }
-      if ((error as Record<string, unknown>).code === '23505') {
+      const cause = (error as Record<string, unknown>).cause as Record<string, unknown> | undefined;
+      if (cause?.code === '23505' || (error as Record<string, unknown>).code === '23505') {
         const [existingWebhook] = await db
           .select()
           .from(webhookEvents)

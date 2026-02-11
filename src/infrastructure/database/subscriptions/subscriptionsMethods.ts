@@ -12,7 +12,7 @@ import { appSubscriptions, appPackages, appPermissions, profiles } from '../sche
 import { eq, or, lt, and, desc, lte, gte, inArray, type SQL } from 'drizzle-orm';
 import { HttpError } from '../../../shared/types/errors/appError.js';
 import { HTTP_STATUS } from '../../../shared/constants/httpStatus.js';
-import { Logger } from '../../../shared/utils/logger.js';
+import { Logger } from '../../../shared/utils/logging/logger.js';
 import { PaginationUtil, type ICursorParams, type IPaginatedResult } from '../../../shared/utils/pagination.js';
 import { buildPartialUpdate } from '../../../shared/utils/updateBuilder.js';
 

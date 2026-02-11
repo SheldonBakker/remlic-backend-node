@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import VehicleController from '../controllers/vehicleController.js';
-import { requestHandler } from '../middleware/requestHandler.js';
+
 import { requireRole, UserRole } from '../middleware/authMiddleware.js';
 import { requireRouteSubscription } from '../middleware/subscriptionMiddleware.js';
 
@@ -197,7 +197,7 @@ const router = Router();
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.get('/', requireRole(UserRole.USER), requireSubscription, requestHandler(VehicleController.getVehicles));
+router.get('/', requireRole(UserRole.USER), requireSubscription, (VehicleController.getVehicles));
 
 /**
  * @swagger
@@ -252,7 +252,7 @@ router.get('/', requireRole(UserRole.USER), requireSubscription, requestHandler(
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.get('/:id', requireRole(UserRole.USER), requireSubscription, requestHandler(VehicleController.getVehicleById));
+router.get('/:id', requireRole(UserRole.USER), requireSubscription, (VehicleController.getVehicleById));
 
 /**
  * @swagger
@@ -311,7 +311,7 @@ router.get('/:id', requireRole(UserRole.USER), requireSubscription, requestHandl
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.post('/', requireRole(UserRole.USER), requireSubscription, requestHandler(VehicleController.createVehicle));
+router.post('/', requireRole(UserRole.USER), requireSubscription, (VehicleController.createVehicle));
 
 /**
  * @swagger
@@ -378,7 +378,7 @@ router.post('/', requireRole(UserRole.USER), requireSubscription, requestHandler
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.patch('/:id', requireRole(UserRole.USER), requireSubscription, requestHandler(VehicleController.updateVehicle));
+router.patch('/:id', requireRole(UserRole.USER), requireSubscription, (VehicleController.updateVehicle));
 
 /**
  * @swagger
@@ -434,6 +434,6 @@ router.patch('/:id', requireRole(UserRole.USER), requireSubscription, requestHan
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.delete('/:id', requireRole(UserRole.USER), requireSubscription, requestHandler(VehicleController.deleteVehicle));
+router.delete('/:id', requireRole(UserRole.USER), requireSubscription, (VehicleController.deleteVehicle));
 
 export default router;

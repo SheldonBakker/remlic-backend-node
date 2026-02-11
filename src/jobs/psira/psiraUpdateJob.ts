@@ -1,7 +1,7 @@
 /* eslint-disable no-await-in-loop, complexity */
 import type { IJobResult, IJobError } from '../types.js';
 import { CronService } from '../cronService.js';
-import { Logger } from '../../shared/utils/logger.js';
+import { Logger } from '../../shared/utils/logging/logger.js';
 import PsiraService from '../../infrastructure/database/psira/psiraMethods.js';
 import SubscriptionsService from '../../infrastructure/database/subscriptions/subscriptionsMethods.js';
 

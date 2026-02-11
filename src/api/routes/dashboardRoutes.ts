@@ -1,6 +1,5 @@
 import { Router } from 'express';
 import DashboardController from '../controllers/dashboardController.js';
-import { requestHandler } from '../middleware/requestHandler.js';
 import { requireRole, UserRole } from '../middleware/authMiddleware.js';
 import { requireAnySubscription } from '../middleware/subscriptionMiddleware.js';
 
@@ -140,6 +139,6 @@ const router = Router();
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.get('/expiring', requireRole(UserRole.USER), requireAnySubscription(), requestHandler(DashboardController.getUpcomingExpiries));
+router.get('/expiring', requireRole(UserRole.USER), requireAnySubscription(), (DashboardController.getUpcomingExpiries));
 
 export default router;

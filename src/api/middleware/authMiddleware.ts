@@ -1,7 +1,7 @@
 import type { Response, NextFunction } from 'express';
 import type { AuthenticatedRequest } from '../../shared/types/request.js';
 import { HTTP_STATUS } from '../../shared/constants/httpStatus.js';
-import { Logger } from '../../shared/utils/logger.js';
+import { Logger } from '../../shared/utils/logging/logger.js';
 import { ResponseUtil } from '../../shared/utils/response.js';
 import { UserRole } from '../../shared/types/auth.js';
 import { createRemoteJWKSet, jwtVerify, type JWTPayload } from 'jose';
