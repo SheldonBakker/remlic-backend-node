@@ -3,7 +3,6 @@ export interface IConfig {
     port: number;
     nodeEnv: string;
     apiVersion: string;
-    logLevel: string;
   };
   supabase: {
     url: string;
@@ -36,7 +35,6 @@ class ConfigService {
         port: parseInt(process.env.PORT ?? '8080', 10),
         nodeEnv: process.env.NODE_ENV ?? 'development',
         apiVersion: process.env.API_VERSION ?? 'v1',
-        logLevel: process.env.LOG_LEVEL ?? 'info',
       },
       supabase: {
         url: process.env.SUPABASE_URL ?? '',
