@@ -18,11 +18,35 @@ const idNumberSchema = z
   .string()
   .regex(/^\d{13}$/, 'ID number must be exactly 13 digits');
 
+const licenceNumberSchema = z
+  .string()
+  .max(50, 'Licence number must be at most 50 characters')
+  .optional();
+
+const licenceCodesSchema = z
+  .array(z.string())
+  .optional();
+
+const genderSchema = z
+  .string()
+  .max(10, 'Gender must be at most 10 characters')
+  .optional();
+
+const decodedDataSchema = z
+  .record(z.unknown())
+  .optional();
+
 const createDriverLicenceSchema = z.object({
   surname: surnameSchema,
   initials: initialsSchema,
   id_number: idNumberSchema,
   expiry_date: dateSchema,
+  licence_number: licenceNumberSchema,
+  licence_codes: licenceCodesSchema,
+  issue_date: dateSchema.optional(),
+  date_of_birth: dateSchema.optional(),
+  gender: genderSchema,
+  decoded_data: decodedDataSchema,
 });
 
 const updateDriverLicenceSchema = z
@@ -31,6 +55,12 @@ const updateDriverLicenceSchema = z
     initials: initialsSchema.optional(),
     id_number: idNumberSchema.optional(),
     expiry_date: dateSchema.optional(),
+    licence_number: licenceNumberSchema,
+    licence_codes: licenceCodesSchema,
+    issue_date: dateSchema.optional(),
+    date_of_birth: dateSchema.optional(),
+    gender: genderSchema,
+    decoded_data: decodedDataSchema,
   })
   .refine((data) => Object.keys(data).length > 0, {
     message: 'At least one field must be provided for update',

@@ -21,6 +21,12 @@ export interface ICreateDriverLicenceRequest {
   initials: string;
   id_number: string;
   expiry_date: string;
+  licence_number?: string;
+  licence_codes?: string[];
+  issue_date?: string;
+  date_of_birth?: string;
+  gender?: string;
+  decoded_data?: Record<string, unknown>;
 }
 
 export interface ICreateDriverLicenceData extends ICreateDriverLicenceRequest {
@@ -32,6 +38,12 @@ export interface IUpdateDriverLicenceRequest {
   initials?: string;
   id_number?: string;
   expiry_date?: string;
+  licence_number?: string;
+  licence_codes?: string[];
+  issue_date?: string;
+  date_of_birth?: string;
+  gender?: string;
+  decoded_data?: Record<string, unknown>;
 }
 
 export interface IUpdateDriverLicenceData extends IUpdateDriverLicenceRequest {

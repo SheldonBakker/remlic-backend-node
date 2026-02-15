@@ -10,6 +10,20 @@ Express v5 + TypeScript backend for the Remlic firearms license management syste
 2. Configure environment: `cp .env.example .env` and add credentials
 3. Start development server: `npm run dev` (runs on http://localhost:8080)
 
+## API Documentation
+
+Comprehensive API documentation is available in [docs/API.md](docs/API.md).
+
+The documentation includes:
+- Complete authentication guide with JWT setup
+- All 61 endpoints with request/response examples
+- Pagination, filtering, and sorting patterns
+- Subscription-based access control
+- Error handling and common scenarios
+- Code examples in cURL, JavaScript, and TypeScript
+
+**Interactive Documentation:** Visit `http://localhost:8080/api/docs` (Swagger UI) when the server is running.
+
 ## Project Structure
 
 ```
