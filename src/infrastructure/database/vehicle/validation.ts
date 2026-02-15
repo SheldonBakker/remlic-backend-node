@@ -3,7 +3,8 @@ import type { ICreateVehicleRequest, IUpdateVehicleRequest, IVehicleFilters } fr
 import { dateSchema, createUuidSchema, sortOrderSchema, withAtLeastOneField } from '../../../shared/schemas/common';
 import { validateOrThrow, validateIdOrThrow } from '../../../shared/utils/validationHelper';
 
-const currentYear = new Date().getFullYear();
+const VEHICLE_YEAR_MIN = 1900;
+const VEHICLE_YEAR_MAX = 2100;
 
 const createVehicleSchema = z.object({
   make: z.string()
@@ -14,16 +15,17 @@ const createVehicleSchema = z.object({
     .max(100, 'Model must not exceed 100 characters'),
   year: z.number()
     .int('Year must be an integer')
-    .min(1900, 'Year must be 1900 or later')
-    .max(currentYear + 1, `Year must not exceed ${currentYear + 1}`),
+    .min(VEHICLE_YEAR_MIN, `Year must be ${VEHICLE_YEAR_MIN} or later`)
+    .max(VEHICLE_YEAR_MAX, `Year must not exceed ${VEHICLE_YEAR_MAX}`),
   vin_number: z.string()
     .max(17, 'VIN number must not exceed 17 characters')
+    .nullable()
     .optional(),
   registration_number: z.string()
     .min(1, 'Registration number is required')
     .max(20, 'Registration number must not exceed 20 characters'),
   expiry_date: dateSchema,
-}).strict();
+});
 
 const updateVehicleSchema = withAtLeastOneField(z.object({
   make: z.string()
@@ -36,8 +38,8 @@ const updateVehicleSchema = withAtLeastOneField(z.object({
     .optional(),
   year: z.number()
     .int('Year must be an integer')
-    .min(1900, 'Year must be 1900 or later')
-    .max(currentYear + 1, `Year must not exceed ${currentYear + 1}`)
+    .min(VEHICLE_YEAR_MIN, `Year must be ${VEHICLE_YEAR_MIN} or later`)
+    .max(VEHICLE_YEAR_MAX, `Year must not exceed ${VEHICLE_YEAR_MAX}`)
     .optional(),
   vin_number: z.string()
     .max(17, 'VIN number must not exceed 17 characters')
@@ -48,15 +50,15 @@ const updateVehicleSchema = withAtLeastOneField(z.object({
     .max(20, 'Registration number must not exceed 20 characters')
     .optional(),
   expiry_date: dateSchema.optional(),
-}).strict());
+}));
 
 const vehicleIdSchema = createUuidSchema('vehicle');
 
 const vehicleFiltersSchema = z.object({
   year: z.coerce.number()
     .int('Year must be an integer')
-    .min(1900, 'Year must be 1900 or later')
-    .max(currentYear + 1, `Year must not exceed ${currentYear + 1}`)
+    .min(VEHICLE_YEAR_MIN, `Year must be ${VEHICLE_YEAR_MIN} or later`)
+    .max(VEHICLE_YEAR_MAX, `Year must not exceed ${VEHICLE_YEAR_MAX}`)
     .optional(),
   registration_number: z.string()
     .min(1, 'Registration number must not be empty')
