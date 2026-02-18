@@ -6,7 +6,7 @@ import { HttpError } from '../../shared/types/errors/appError';
 import SubscriptionsService from '../../infrastructure/database/subscriptions/subscriptionsMethods';
 import { SubscriptionsValidation } from '../../infrastructure/database/subscriptions/validation';
 import { PaginationUtil } from '../../shared/utils/pagination';
-import { SubscriptionUseCases } from '../../usecases/subscriptionUseCases';
+import { SubscriptionUseCases } from '../../useCase/subscriptionUseCases';
 
 export default class SubscriptionsController {
   public static getSubscriptions = async (

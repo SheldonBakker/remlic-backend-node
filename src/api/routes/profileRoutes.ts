@@ -70,4 +70,46 @@ const router = Router();
  */
 router.get('/', requireRole(UserRole.USER), (ProfileController.getProfile));
 
+/**
+ * @swagger
+ * /profile:
+ *   delete:
+ *     summary: Delete current user's account
+ *     description: Permanently deletes the authenticated user's profile and all associated data.
+ *     tags:
+ *       - Profile
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Account deleted successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     message:
+ *                       type: string
+ *                       example: "Account deleted successfully"
+ *                 timestamp:
+ *                   type: string
+ *                   format: date-time
+ *                 statusCode:
+ *                   type: integer
+ *                   example: 200
+ *       401:
+ *         description: Unauthorized - Invalid or missing token
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
+router.delete('/', requireRole(UserRole.USER), (ProfileController.deleteProfile));
+
 export default router;

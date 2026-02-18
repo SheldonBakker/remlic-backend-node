@@ -1,12 +1,21 @@
 import type { ISignupRequest, ISignupResponse, IProfile } from './types';
 import { supabase } from '../supabaseClient';
 import db from '../drizzleClient';
-import { profiles } from '../schema/index';
+import {
+  profiles,
+  reminderSettings,
+  appSubscriptions,
+  firearms,
+  vehicles,
+  certificates,
+  psiraOfficers,
+  driverLicences,
+} from '../schema/index';
 import { eq } from 'drizzle-orm';
 import { HttpError } from '../../../shared/types/errors/appError';
 import { HTTP_STATUS } from '../../../shared/constants/httpStatus';
 import Logger from '../../../shared/utils/logger';
-import { FreeTrialService } from '../../../usecases/freeTrialService';
+import { FreeTrialService } from '../../../useCase/freeTrialService';
 
 export default class AuthService {
   private static readonly CONTEXT = 'AUTH_SERVICE';
@@ -70,6 +79,25 @@ export default class AuthService {
       },
       message: 'User registered successfully. Please check your email to verify your account.',
     };
+  }
+
+  public static async deleteAccount(userId: string): Promise<void> {
+    await db.transaction(async (tx) => {
+      await tx.delete(reminderSettings).where(eq(reminderSettings.profile_id, userId));
+      await tx.delete(appSubscriptions).where(eq(appSubscriptions.profile_id, userId));
+      await tx.delete(firearms).where(eq(firearms.profile_id, userId));
+      await tx.delete(vehicles).where(eq(vehicles.profile_id, userId));
+      await tx.delete(certificates).where(eq(certificates.profile_id, userId));
+      await tx.delete(psiraOfficers).where(eq(psiraOfficers.profile_id, userId));
+      await tx.delete(driverLicences).where(eq(driverLicences.profile_id, userId));
+      await tx.delete(profiles).where(eq(profiles.id, userId));
+    });
+
+    const { error } = await supabase.auth.admin.deleteUser(userId);
+
+    if (error) {
+      Logger.warn(this.CONTEXT, `Database records deleted but Supabase auth deletion failed for user ${userId}: ${error.message}`);
+    }
   }
 
   public static async getProfileById(userId: string): Promise<IProfile | null> {

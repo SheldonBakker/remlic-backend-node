@@ -2,7 +2,7 @@ import type { Request, Response, NextFunction } from 'express';
 import { ResponseUtil } from '../../shared/utils/response';
 import { HTTP_STATUS } from '../../shared/constants/httpStatus';
 import { HttpError } from '../../shared/types/errors/appError';
-import { SubscriptionUseCases } from '../../usecases/subscriptionUseCases';
+import { SubscriptionUseCases } from '../../useCase/subscriptionUseCases';
 import Logger from '../../shared/utils/logger';
 import WebhooksService from '../../infrastructure/database/webhooks/webhooksMethods';
 import { PaystackService } from '../../infrastructure/payment/paystackService';
