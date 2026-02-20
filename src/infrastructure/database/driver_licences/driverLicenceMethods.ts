@@ -122,6 +122,13 @@ export default class DriverLicenceService {
       if (error instanceof HttpError) {
         throw error;
       }
+      const { cause } = (error as { cause?: { code?: string; constraint?: string } });
+      const errorCode = cause?.code ?? (error as { code?: string }).code;
+
+      if (errorCode === '23505') {
+        throw new HttpError(HTTP_STATUS.CONFLICT, 'Driver licence with this ID number already');
+      }
+
       Logger.error(this.CONTEXT, 'Failed to create driver licence', error);
       throw new HttpError(HTTP_STATUS.INTERNAL_SERVER_ERROR, 'Failed to create driver licence');
     }
@@ -167,6 +174,13 @@ export default class DriverLicenceService {
       if (error instanceof HttpError) {
         throw error;
       }
+      const { cause } = (error as { cause?: { code?: string; constraint?: string } });
+      const errorCode = cause?.code ?? (error as { code?: string }).code;
+
+      if (errorCode === '23505') {
+        throw new HttpError(HTTP_STATUS.CONFLICT, 'Driver licence with this ID number already exists for another user');
+      }
+
       Logger.error(this.CONTEXT, 'Failed to update driver licence', error);
       throw new HttpError(HTTP_STATUS.INTERNAL_SERVER_ERROR, 'Failed to update driver licence');
     }
@@ -201,7 +215,7 @@ export default class DriverLicenceService {
       id: row.id,
       profile_id: row.profile_id,
       surname: row.surname,
-      initials: row.initials ?? '',
+      initials: row.initials,
       id_number: row.id_number,
       expiry_date: row.expiry_date,
       licence_number: row.licence_number,

@@ -64,7 +64,7 @@ export const driverLicences = pgTable('driver_licences', {
   id: uuid('id').primaryKey().defaultRandom(),
   profile_id: uuid('profile_id').notNull().references(() => profiles.id),
   surname: text('surname').notNull(),
-  initials: text('initials'),
+  initials: text('initials').notNull(),
   id_number: text('id_number').notNull(),
   expiry_date: date('expiry_date').notNull(),
   licence_number: text('licence_number'),
