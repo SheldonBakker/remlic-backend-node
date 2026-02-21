@@ -1,5 +1,5 @@
 import type { IVehicle, ICreateVehicleData, IUpdateVehicleData, IVehicleFilters } from './types';
-import db from '../drizzleClient';
+import db from '../databaseClient';
 import { vehicles } from '../schema/index';
 import { eq, or, lt, and, desc, asc, inArray, sql, type SQL } from 'drizzle-orm';
 import { HttpError } from '../../../shared/types/errors/appError';

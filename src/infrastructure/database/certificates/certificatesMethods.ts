@@ -1,5 +1,5 @@
 import type { ICertificate, ICreateCertificateData, IUpdateCertificateData, ICertificatesFilters } from './types';
-import db from '../drizzleClient';
+import db from '../databaseClient';
 import { certificates } from '../schema/index';
 import { eq, or, lt, and, desc, asc, ilike, type SQL } from 'drizzle-orm';
 import { HttpError } from '../../../shared/types/errors/appError';

@@ -1,5 +1,5 @@
 import type { IDashboardExpiringRecord, IDashboardFilters } from './types';
-import db from '../drizzleClient';
+import db from '../databaseClient';
 import { sql } from 'drizzle-orm';
 import { HttpError } from '../../../shared/types/errors/appError';
 import { HTTP_STATUS } from '../../../shared/constants/httpStatus';

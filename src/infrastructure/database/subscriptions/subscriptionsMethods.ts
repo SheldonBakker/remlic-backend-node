@@ -7,7 +7,7 @@ import type {
   IUserPermissions,
   ICreateSubscriptionFromPaystack,
 } from './types';
-import db from '../drizzleClient';
+import db from '../databaseClient';
 import { appSubscriptions, appPackages, appPermissions, profiles } from '../schema/index';
 import { eq, or, lt, and, desc, lte, gte, inArray, type SQL } from 'drizzle-orm';
 import { HttpError } from '../../../shared/types/errors/appError';

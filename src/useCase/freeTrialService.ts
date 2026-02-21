@@ -1,4 +1,4 @@
-import db from '../infrastructure/database/drizzleClient';
+import db from '../infrastructure/database/databaseClient';
 import { appPackages, appSubscriptions } from '../infrastructure/database/schema/index';
 import { eq, and } from 'drizzle-orm';
 import Logger from '../shared/utils/logger';

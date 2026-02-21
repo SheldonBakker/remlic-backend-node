@@ -10,7 +10,7 @@ import type {
 import { HttpError } from '../shared/types/errors/appError';
 import { HTTP_STATUS } from '../shared/constants/httpStatus';
 import Logger from '../shared/utils/logger';
-import db from '../infrastructure/database/drizzleClient';
+import db from '../infrastructure/database/databaseClient';
 import { profiles } from '../infrastructure/database/schema/index';
 import { eq } from 'drizzle-orm';
 import { PaystackService } from '../infrastructure/payment/paystackService';

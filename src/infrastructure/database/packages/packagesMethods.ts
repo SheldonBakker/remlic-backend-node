@@ -1,5 +1,5 @@
 import type { IPackage, IPackageWithPermission, ICreatePackageRequest, IUpdatePackageRequest, IPackagesFilters } from './types';
-import db from '../drizzleClient';
+import db from '../databaseClient';
 import { appPackages, appPermissions } from '../schema/index';
 import { eq, or, lt, and, desc, type SQL } from 'drizzle-orm';
 import { HttpError } from '../../../shared/types/errors/appError';

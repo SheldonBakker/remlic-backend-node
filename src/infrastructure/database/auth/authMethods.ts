@@ -1,6 +1,6 @@
 import type { ISignupRequest, ISignupResponse, IProfile } from './types';
 import { supabase } from '../supabaseClient';
-import db from '../drizzleClient';
+import db from '../databaseClient';
 import {
   profiles,
   reminderSettings,

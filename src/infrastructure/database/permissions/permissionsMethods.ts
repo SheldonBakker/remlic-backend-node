@@ -1,5 +1,5 @@
 import type { IPermission, ICreatePermissionRequest, IUpdatePermissionRequest } from './types';
-import db from '../drizzleClient';
+import db from '../databaseClient';
 import { appPermissions } from '../schema/index';
 import { eq, or, lt, and, desc } from 'drizzle-orm';
 import { HttpError } from '../../../shared/types/errors/appError';

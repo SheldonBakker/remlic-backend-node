@@ -3,7 +3,7 @@ import type {
   ICreateWebhookEventRequest,
   IStoreWebhookResult,
 } from './types';
-import db from '../drizzleClient';
+import db from '../databaseClient';
 import { webhookEvents } from '../schema/index';
 import { eq, and } from 'drizzle-orm';
 import { HttpError } from '../../../shared/types/errors/appError';

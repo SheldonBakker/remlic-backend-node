@@ -7,7 +7,7 @@ import type {
   IBatchReminderItem,
   IBatchReminderResult,
 } from './types';
-import db from '../drizzleClient';
+import db from '../databaseClient';
 import { reminderSettings, firearms, vehicles, certificates, psiraOfficers, driverLicences } from '../schema/index';
 import { eq, and, inArray, sql } from 'drizzle-orm';
 import { HttpError } from '../../../shared/types/errors/appError';
