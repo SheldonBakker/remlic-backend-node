@@ -9,7 +9,7 @@ const client = postgres(config.database.url, {
   idle_timeout: config.database.idleTimeout,
   connect_timeout: config.database.connectTimeout,
   prepare: false,
-  onnotice: (n) => Logger.info('PostgreSQL', String(n.message ?? '')),
+  onnotice: (n) => Logger.info('PostgreSQL', String(n.message)),
 });
 
 const drizzleLogger = {
