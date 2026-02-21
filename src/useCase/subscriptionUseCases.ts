@@ -113,7 +113,7 @@ export class SubscriptionUseCases {
 
   private static async handleChargeSuccess(payload: IPaystackWebhookPayload): Promise<void> {
     const { data } = payload;
-    const metadata = data.metadata as ISubscriptionMetadata | undefined;
+    const metadata = (data.metadata as ISubscriptionMetadata | undefined) ?? null;
 
     if (metadata?.user_id && metadata.package_id) {
       await SubscriptionUseCases.createInitialSubscription(data, metadata.user_id, metadata.package_id);

@@ -17,7 +17,8 @@ const createPackageSchema = z.object({
   permission_id: z.string().uuid('Invalid permission ID format'),
   description: z.string()
     .max(500, 'Description must not exceed 500 characters')
-    .optional(),
+    .nullable()
+    .default(null),
 }).strict();
 
 const updatePackageSchema = withAtLeastOneField(z.object({

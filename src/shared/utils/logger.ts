@@ -93,7 +93,7 @@ class Logger {
     winstonLogger.warn(message, { context });
   }
 
-  static error(context: string, message: string, error?: unknown): void {
+  static error(context: string, message: string, error: unknown = null): void {
     if (error instanceof Error) {
       winstonLogger.error(message, {
         context,
@@ -104,7 +104,7 @@ class Logger {
         ...('statusCode' in error && { statusCode: (error as { statusCode: number }).statusCode }),
         ...('isOperational' in error && { isOperational: (error as { isOperational: boolean }).isOperational }),
       });
-    } else if (error !== undefined) {
+    } else if (error !== null) {
       winstonLogger.error(message, {
         context,
         error: typeof error === 'string' ? error : JSON.stringify(error),

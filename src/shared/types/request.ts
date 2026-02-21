@@ -4,10 +4,10 @@ import type { IUserPermissions } from '../../infrastructure/database/subscriptio
 
 export interface IAuthUser {
   id: string;
-  email?: string;
-  role?: string;
+  email: string | null;
+  role: string | null;
   appRole: UserRole | null;
-  permissions?: IUserPermissions;
+  permissions: IUserPermissions | null;
 }
 
 export interface AuthenticatedRequest extends Request {

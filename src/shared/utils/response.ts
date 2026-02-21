@@ -6,18 +6,15 @@ export class ResponseUtil {
     res: Response,
     data: T,
     statusCode = 200,
-    pagination?: IPagination,
+    pagination: IPagination | null = null,
   ): void {
     const response: IApiResponse<T> = {
       success: true,
       data,
+      pagination,
       timestamp: new Date().toISOString(),
       statusCode,
     };
-
-    if (pagination) {
-      response.pagination = pagination;
-    }
 
     res.status(statusCode).json(response);
   }
@@ -26,18 +23,15 @@ export class ResponseUtil {
     res: Response,
     message: string,
     statusCode = 500,
-    details?: unknown,
+    details: unknown = null,
   ): void {
     const response: IApiErrorResponse = {
       success: false,
       error: message,
+      details: process.env.NODE_ENV !== 'production' ? details : null,
       timestamp: new Date().toISOString(),
       statusCode,
     };
-
-    if (process.env.NODE_ENV !== 'production' && details) {
-      response.details = details;
-    }
 
     res.status(statusCode).json(response);
   }

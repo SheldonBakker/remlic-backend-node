@@ -241,7 +241,7 @@ export default class RemindersService {
 
   public static async getExpiringRemindersBatch(
     limit = 1000,
-    cursorId?: string,
+    cursorId: string | null = null,
   ): Promise<IBatchReminderResult> {
     try {
       const data = await db.execute<{

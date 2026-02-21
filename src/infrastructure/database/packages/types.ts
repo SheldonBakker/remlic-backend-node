@@ -24,7 +24,7 @@ export interface ICreatePackageRequest {
   slug: string;
   type: PackageType;
   permission_id: string;
-  description?: string;
+  description: string | null;
 }
 
 export interface IUpdatePackageRequest {

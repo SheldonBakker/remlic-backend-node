@@ -15,7 +15,7 @@ async function run(): Promise<IJobResult> {
   const errors: IJobError[] = [];
   let recordsProcessed = 0;
   let emailsSent = 0;
-  let cursor: string | undefined;
+  let cursor: string | null = null;
 
   try {
     let hasMore = true;
@@ -49,7 +49,7 @@ async function run(): Promise<IJobResult> {
       }
 
       hasMore = nextCursor !== null;
-      cursor = nextCursor ?? undefined;
+      cursor = nextCursor;
     }
 
     return {

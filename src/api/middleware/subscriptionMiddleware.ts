@@ -111,7 +111,7 @@ export const requireEntityTypeAccess = () => {
         return;
       }
 
-      const entityType = (req.params.entityType ?? req.body?.entity_type) as EntityType | undefined;
+      const entityType = ((req.params.entityType ?? req.body?.entity_type) as EntityType | undefined) ?? null;
 
       if (!entityType) {
         ResponseUtil.error(res, 'Invalid entity type', HTTP_STATUS.BAD_REQUEST);

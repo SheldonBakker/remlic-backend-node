@@ -10,6 +10,7 @@ export const SUBSCRIPTION_ROUTE_CONFIG: Record<string, IRouteSubscriptionConfig>
   '/certificates': { feature: 'certificate_access' },
   '/psira': { feature: 'psira_access' },
   '/driver-licences': { feature: 'drivers_access' },
+  '/decrypt': { feature: 'drivers_access' },
 };
 
 export const getRouteFeature = (basePath: string): SubscriptionFeature | null => {

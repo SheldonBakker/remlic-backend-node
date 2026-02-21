@@ -16,7 +16,7 @@ export interface ICreateFirearmRequest {
   make: string;
   model: string;
   caliber: string;
-  serial_number?: string;
+  serial_number: string | null;
   expiry_date: string;
 }
 

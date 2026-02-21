@@ -18,7 +18,8 @@ const createFirearmSchema = z.object({
     .max(50, 'Caliber must not exceed 50 characters'),
   serial_number: z.string()
     .max(100, 'Serial number must not exceed 100 characters')
-    .optional(),
+    .nullable()
+    .default(null),
   expiry_date: dateSchema,
 }).strict();
 

@@ -21,20 +21,24 @@ const idNumberSchema = z
 const licenceNumberSchema = z
   .string()
   .max(50, 'Licence number must be at most 50 characters')
-  .optional();
+  .nullable()
+  .default(null);
 
 const licenceCodesSchema = z
   .array(z.string())
-  .optional();
+  .nullable()
+  .default(null);
 
 const genderSchema = z
   .string()
   .max(10, 'Gender must be at most 10 characters')
-  .optional();
+  .nullable()
+  .default(null);
 
 const decodedDataSchema = z
   .record(z.unknown())
-  .optional();
+  .nullable()
+  .default(null);
 
 const createDriverLicenceSchema = z.object({
   surname: surnameSchema,
@@ -43,8 +47,8 @@ const createDriverLicenceSchema = z.object({
   expiry_date: dateSchema,
   licence_number: licenceNumberSchema,
   licence_codes: licenceCodesSchema,
-  issue_date: dateSchema.optional(),
-  date_of_birth: dateSchema.optional(),
+  issue_date: dateSchema.nullable().default(null),
+  date_of_birth: dateSchema.nullable().default(null),
   gender: genderSchema,
   decoded_data: decodedDataSchema,
 });
@@ -55,12 +59,12 @@ const updateDriverLicenceSchema = z
     initials: initialsSchema.optional(),
     id_number: idNumberSchema.optional(),
     expiry_date: dateSchema.optional(),
-    licence_number: licenceNumberSchema,
-    licence_codes: licenceCodesSchema,
+    licence_number: z.string().max(50, 'Licence number must be at most 50 characters').optional(),
+    licence_codes: z.array(z.string()).optional(),
     issue_date: dateSchema.optional(),
     date_of_birth: dateSchema.optional(),
-    gender: genderSchema,
-    decoded_data: decodedDataSchema,
+    gender: z.string().max(10, 'Gender must be at most 10 characters').optional(),
+    decoded_data: z.record(z.unknown()).optional(),
   })
   .refine((data) => Object.keys(data).length > 0, {
     message: 'At least one field must be provided for update',

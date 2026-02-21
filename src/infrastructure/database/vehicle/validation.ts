@@ -20,7 +20,7 @@ const createVehicleSchema = z.object({
   vin_number: z.string()
     .max(17, 'VIN number must not exceed 17 characters')
     .nullable()
-    .optional(),
+    .default(null),
   registration_number: z.string()
     .min(1, 'Registration number is required')
     .max(20, 'Registration number must not exceed 20 characters'),

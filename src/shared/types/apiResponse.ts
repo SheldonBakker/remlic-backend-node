@@ -1,11 +1,11 @@
 export interface IPagination {
-  nextCursor?: string | null;
+  nextCursor: string | null;
 }
 
 export interface IApiResponse<T> {
   success: true;
   data: T;
-  pagination?: IPagination;
+  pagination: IPagination | null;
   timestamp: string;
   statusCode: number;
 }
@@ -13,7 +13,7 @@ export interface IApiResponse<T> {
 export interface IApiErrorResponse {
   success: false;
   error: string;
-  details?: unknown;
+  details: unknown | null;
   timestamp: string;
   statusCode: number;
 }

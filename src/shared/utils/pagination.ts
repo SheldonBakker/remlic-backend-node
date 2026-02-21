@@ -2,7 +2,7 @@ import { z } from 'zod';
 import type { IPagination } from '../types/apiResponse';
 
 export interface ICursorParams {
-  cursor?: string;
+  cursor: string | null;
   limit: number;
 }
 
@@ -28,15 +28,15 @@ export class PaginationUtil {
   public static parseQuery(query: unknown): ICursorParams {
     const result = paginationQuerySchema.safeParse(query);
     if (!result.success) {
-      return { limit: DEFAULT_LIMIT };
+      return { cursor: null, limit: DEFAULT_LIMIT };
     }
     return {
-      cursor: result.data.cursor,
+      cursor: result.data.cursor ?? null,
       limit: result.data.limit ?? DEFAULT_LIMIT,
     };
   }
 
-  public static decodeCursor(cursor: string | undefined): { created_at: string; id: string } | null {
+  public static decodeCursor(cursor: string | null): { created_at: string; id: string } | null {
     if (!cursor) {
       return null;
     }

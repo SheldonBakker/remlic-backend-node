@@ -24,6 +24,12 @@ export interface IConfig {
     secretKey: string;
     baseUrl: string;
   };
+  decrypt: {
+    v1Pk128: string;
+    v1Pk74: string;
+    v2Pk128: string;
+    v2Pk74: string;
+  };
 }
 
 class ConfigService {
@@ -56,6 +62,12 @@ class ConfigService {
         secretKey: process.env.PAYSTACK_SECRET ?? '',
         baseUrl: 'https://api.paystack.co',
       },
+      decrypt: {
+        v1Pk128: process.env.RSA_V1_PK_128 ?? '',
+        v1Pk74: process.env.RSA_V1_PK_74 ?? '',
+        v2Pk128: process.env.RSA_V2_PK_128 ?? '',
+        v2Pk74: process.env.RSA_V2_PK_74 ?? '',
+      },
     };
   }
 
@@ -76,6 +88,19 @@ class ConfigService {
 
     if (!cfg.database.url) {
       errors.push('DATABASE_URL is required');
+    }
+
+    if (!cfg.decrypt.v1Pk128) {
+      errors.push('RSA_V1_PK_128 is required');
+    }
+    if (!cfg.decrypt.v1Pk74) {
+      errors.push('RSA_V1_PK_74 is required');
+    }
+    if (!cfg.decrypt.v2Pk128) {
+      errors.push('RSA_V2_PK_128 is required');
+    }
+    if (!cfg.decrypt.v2Pk74) {
+      errors.push('RSA_V2_PK_74 is required');
     }
 
     if (errors.length > 0) {

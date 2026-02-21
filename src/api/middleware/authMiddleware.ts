@@ -62,9 +62,10 @@ export const requireRole = (...allowedRoles: UserRole[]) => {
 
       req.user = {
         id: payload.sub,
-        email: payload.email,
-        role: payload.role,
+        email: payload.email ?? null,
+        role: payload.role ?? null,
         appRole: appRole ?? null,
+        permissions: null,
       };
 
       if (appRole === UserRole.ADMIN) {

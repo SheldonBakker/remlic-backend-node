@@ -7,12 +7,12 @@ export interface IDriverLicence {
   initials: string;
   id_number: string;
   expiry_date: string;
-  licence_number?: string | null;
-  licence_codes?: string[] | null;
-  issue_date?: string | null;
-  date_of_birth?: string | null;
-  gender?: string | null;
-  decoded_data?: Record<string, unknown> | null;
+  licence_number: string | null;
+  licence_codes: string[] | null;
+  issue_date: string | null;
+  date_of_birth: string | null;
+  gender: string | null;
+  decoded_data: Record<string, unknown> | null;
   created_at: string;
   updated_at: string;
 }
@@ -22,12 +22,12 @@ export interface ICreateDriverLicenceRequest {
   initials: string;
   id_number: string;
   expiry_date: string;
-  licence_number?: string;
-  licence_codes?: string[];
-  issue_date?: string;
-  date_of_birth?: string;
-  gender?: string;
-  decoded_data?: Record<string, unknown>;
+  licence_number: string | null;
+  licence_codes: string[] | null;
+  issue_date: string | null;
+  date_of_birth: string | null;
+  gender: string | null;
+  decoded_data: Record<string, unknown> | null;
 }
 
 export interface ICreateDriverLicenceData extends ICreateDriverLicenceRequest {

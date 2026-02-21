@@ -15,7 +15,7 @@ export interface ICreateVehicleRequest {
   make: string;
   model: string;
   year: number;
-  vin_number?: string | null;
+  vin_number: string | null;
   registration_number: string;
   expiry_date: string;
 }
