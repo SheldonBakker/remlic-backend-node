@@ -1,4 +1,4 @@
-import type { IRSAPublicKey } from './pemParser.js';
+import type { IRSAPublicKey } from './pemParser';
 
 export class DecryptionError extends Error {
   constructor(message: string) {

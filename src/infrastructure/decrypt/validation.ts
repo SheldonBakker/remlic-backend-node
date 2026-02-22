@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { validateOrThrow } from '../../shared/utils/validationHelper.js';
+import { validateOrThrow } from '../../shared/utils/validationHelper';
 
 export type DecryptType = 'drivers' | 'vehicle';
 

@@ -1,6 +1,6 @@
-import type { ISADriversLicense } from '../types.js';
-import { v1Block128Key, v1Block74Key, v2Block128Key, v2Block74Key } from '../keys/rsaKeys.js';
-import { decryptSixBlockPayload, bytesToNibbles, DecryptionError } from './rsaBarcodeCrypto.js';
+import type { ISADriversLicense } from '../types';
+import { v1Block128Key, v1Block74Key, v2Block128Key, v2Block74Key } from '../keys/rsaKeys';
+import { decryptSixBlockPayload, bytesToNibbles, DecryptionError } from './rsaBarcodeCrypto';
 
 interface IDecryptResult {
   data: Uint8Array;

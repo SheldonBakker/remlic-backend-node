@@ -1,11 +1,11 @@
 import type { Request, Response, NextFunction } from 'express';
-import { ResponseUtil } from '../../shared/utils/response.js';
-import { HTTP_STATUS } from '../../shared/constants/httpStatus.js';
-import { HttpError } from '../../shared/types/errors/appError.js';
-import { DecryptValidation } from '../../infrastructure/decrypt/validation.js';
-import { decryptAndParseDriverLicense } from '../../infrastructure/decrypt/services/driverLicenseDecryption.js';
-import { decryptAndParseVehicleLicense } from '../../infrastructure/decrypt/services/vehicleLicenseDecryption.js';
-import { DecryptionError } from '../../infrastructure/decrypt/services/rsaBarcodeCrypto.js';
+import { ResponseUtil } from '../../shared/utils/response';
+import { HTTP_STATUS } from '../../shared/constants/httpStatus';
+import { HttpError } from '../../shared/types/errors/appError';
+import { DecryptValidation } from '../../infrastructure/decrypt/validation';
+import { decryptAndParseDriverLicense } from '../../infrastructure/decrypt/services/driverLicenseDecryption';
+import { decryptAndParseVehicleLicense } from '../../infrastructure/decrypt/services/vehicleLicenseDecryption';
+import { DecryptionError } from '../../infrastructure/decrypt/services/rsaBarcodeCrypto';
 
 export default class DecryptController {
   public static decrypt = (

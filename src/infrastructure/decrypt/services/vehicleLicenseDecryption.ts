@@ -1,6 +1,6 @@
-import type { ISAVehicleLicense } from '../types.js';
-import { v1Block128Key, v1Block74Key, v2Block128Key, v2Block74Key } from '../keys/rsaKeys.js';
-import { decryptSixBlockPayload, bytesToNibbles } from './rsaBarcodeCrypto.js';
+import type { ISAVehicleLicense } from '../types';
+import { v1Block128Key, v1Block74Key, v2Block128Key, v2Block74Key } from '../keys/rsaKeys';
+import { decryptSixBlockPayload, bytesToNibbles } from './rsaBarcodeCrypto';
 
 export function decryptAndParseVehicleLicense(rawData: Uint8Array): ISAVehicleLicense {
   let dataToProcess: Uint8Array;
