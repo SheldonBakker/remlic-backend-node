@@ -106,8 +106,24 @@ export class SubscriptionUseCases {
         Logger.warn('SUBSCRIPTION_USE_CASES', `Payment failed for subscription: ${data.subscription_code}`);
         break;
 
-      default:
+      case 'subscription.create':
+        Logger.info('SUBSCRIPTION_USE_CASES', `Subscription created on Paystack: ${data.subscription_code} for ${data.customer.email}`);
         break;
+
+      case 'invoice.create':
+        Logger.info('SUBSCRIPTION_USE_CASES', `Upcoming renewal for subscription: ${data.subscription_code}, next payment: ${data.next_payment_date}`);
+        break;
+
+      case 'invoice.update':
+        Logger.info('SUBSCRIPTION_USE_CASES', `Invoice updated for subscription: ${data.subscription_code}, status: ${data.status}`);
+        break;
+
+      case 'subscription.expiring_cards':
+        Logger.warn('SUBSCRIPTION_USE_CASES', `Expiring cards event received, payload contains ${JSON.stringify(data.id)} affected entries`);
+        break;
+
+      default:
+        Logger.warn('SUBSCRIPTION_USE_CASES', `Unrecognized webhook event: ${event as string}`);
     }
   }
 

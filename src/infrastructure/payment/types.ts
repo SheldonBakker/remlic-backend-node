@@ -108,6 +108,7 @@ export type PaystackWebhookEvent =
   | 'subscription.create'
   | 'subscription.disable'
   | 'subscription.not_renew'
+  | 'subscription.expiring_cards'
   | 'charge.success'
   | 'invoice.create'
   | 'invoice.payment_failed'
