@@ -1,11 +1,14 @@
 import { Router } from 'express';
-import CertificatesController from '../controllers/certificatesController';
-import { requireRole, UserRole } from '../middleware/authMiddleware';
-import { requireRouteSubscription } from '../middleware/subscriptionMiddleware';
+import { list, create, update, remove } from '../controllers/certificatesController.js';
+import { requireRole, UserRole } from '../middleware/authMiddleware.js';
+import { requireRouteSubscription } from '../middleware/subscriptionMiddleware.js';
 
 const requireSubscription = requireRouteSubscription('/certificates');
 
 const router = Router();
+
+router.use(requireRole(UserRole.USER));
+router.use(requireSubscription);
 
 /**
  * @swagger
@@ -132,6 +135,12 @@ const router = Router();
  *           type: string
  *           enum: [asc, desc]
  *         description: Sort order (ascending or descending)
+ *       - in: query
+ *         name: id
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: If provided, return a single certificate by ID instead of a list
  *     responses:
  *       200:
  *         description: Certificates retrieved successfully
@@ -176,62 +185,7 @@ const router = Router();
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.get('/', requireRole(UserRole.USER), requireSubscription, (CertificatesController.getCertificates));
-
-/**
- * @swagger
- * /certificates/{id}:
- *   get:
- *     summary: Get a specific certificate by ID
- *     description: Returns a single certificate by its ID if it belongs to the authenticated user.
- *     tags:
- *       - Certificates
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *           format: uuid
- *         description: The certificate ID
- *     responses:
- *       200:
- *         description: Certificate retrieved successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: true
- *                 data:
- *                   type: object
- *                   properties:
- *                     certificate:
- *                       $ref: '#/components/schemas/Certificate'
- *                 timestamp:
- *                   type: string
- *                   format: date-time
- *                 statusCode:
- *                   type: integer
- *                   example: 200
- *       401:
- *         description: Unauthorized - Invalid or missing token
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/Error'
- *       404:
- *         description: Certificate not found
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/Error'
- */
-router.get('/:id', requireRole(UserRole.USER), requireSubscription, (CertificatesController.getCertificateById));
+router.get('/', list);
 
 /**
  * @swagger
@@ -284,7 +238,7 @@ router.get('/:id', requireRole(UserRole.USER), requireSubscription, (Certificate
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.post('/', requireRole(UserRole.USER), requireSubscription, (CertificatesController.createCertificate));
+router.post('/', create);
 
 /**
  * @swagger
@@ -351,7 +305,7 @@ router.post('/', requireRole(UserRole.USER), requireSubscription, (CertificatesC
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.patch('/:id', requireRole(UserRole.USER), requireSubscription, (CertificatesController.updateCertificate));
+router.patch('/:id', update);
 
 /**
  * @swagger
@@ -407,6 +361,6 @@ router.patch('/:id', requireRole(UserRole.USER), requireSubscription, (Certifica
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.delete('/:id', requireRole(UserRole.USER), requireSubscription, (CertificatesController.deleteCertificate));
+router.delete('/:id', remove);
 
 export default router;

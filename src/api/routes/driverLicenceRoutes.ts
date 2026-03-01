@@ -1,11 +1,14 @@
 import { Router } from 'express';
-import DriverLicenceController from '../controllers/driverLicenceController';
-import { requireRole, UserRole } from '../middleware/authMiddleware';
-import { requireRouteSubscription } from '../middleware/subscriptionMiddleware';
+import { list, create, update, remove } from '../controllers/driverLicenceController.js';
+import { requireRole, UserRole } from '../middleware/authMiddleware.js';
+import { requireRouteSubscription } from '../middleware/subscriptionMiddleware.js';
 
 const requireSubscription = requireRouteSubscription('/driver-licences');
 
 const router = Router();
+
+router.use(requireRole(UserRole.USER));
+router.use(requireSubscription);
 
 /**
  * @swagger
@@ -133,6 +136,12 @@ const router = Router();
  *           enum: [asc, desc]
  *           default: desc
  *         description: Sort order (ascending or descending)
+ *       - in: query
+ *         name: id
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: If provided, return a single driver licence by ID instead of a list
  *     responses:
  *       200:
  *         description: Driver licences retrieved successfully
@@ -177,62 +186,7 @@ const router = Router();
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.get('/', requireRole(UserRole.USER), requireSubscription, (DriverLicenceController.getDriverLicences));
-
-/**
- * @swagger
- * /driver-licences/{id}:
- *   get:
- *     summary: Get a specific driver licence by ID
- *     description: Returns a single driver licence by its ID if it belongs to the authenticated user.
- *     tags:
- *       - Driver Licences
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *           format: uuid
- *         description: The driver licence ID
- *     responses:
- *       200:
- *         description: Driver licence retrieved successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: true
- *                 data:
- *                   type: object
- *                   properties:
- *                     driver_licence:
- *                       $ref: '#/components/schemas/DriverLicence'
- *                 timestamp:
- *                   type: string
- *                   format: date-time
- *                 statusCode:
- *                   type: integer
- *                   example: 200
- *       401:
- *         description: Unauthorized - Invalid or missing token
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/Error'
- *       404:
- *         description: Driver licence not found
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/Error'
- */
-router.get('/:id', requireRole(UserRole.USER), requireSubscription, (DriverLicenceController.getDriverLicenceById));
+router.get('/', list);
 
 /**
  * @swagger
@@ -285,7 +239,7 @@ router.get('/:id', requireRole(UserRole.USER), requireSubscription, (DriverLicen
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.post('/', requireRole(UserRole.USER), requireSubscription, (DriverLicenceController.createDriverLicence));
+router.post('/', create);
 
 /**
  * @swagger
@@ -352,7 +306,7 @@ router.post('/', requireRole(UserRole.USER), requireSubscription, (DriverLicence
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.patch('/:id', requireRole(UserRole.USER), requireSubscription, (DriverLicenceController.updateDriverLicence));
+router.patch('/:id', update);
 
 /**
  * @swagger
@@ -408,6 +362,6 @@ router.patch('/:id', requireRole(UserRole.USER), requireSubscription, (DriverLic
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.delete('/:id', requireRole(UserRole.USER), requireSubscription, (DriverLicenceController.deleteDriverLicence));
+router.delete('/:id', remove);
 
 export default router;

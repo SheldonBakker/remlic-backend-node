@@ -2,8 +2,8 @@
 import type { IJobResult, IJobError } from '../types';
 import { CronService } from '../cronService';
 import Logger from '../../shared/utils/logger';
-import PsiraService from '../../infrastructure/database/psira/psiraMethods';
-import SubscriptionsService from '../../infrastructure/database/subscriptions/subscriptionsMethods';
+import { getExpiredOfficers, getApplicantDetailsBySiraNo, updateOfficerFromApi } from '../../infrastructure/database/psira/psiraMethods';
+import { getProfileIdsWithValidSubscription } from '../../infrastructure/database/subscriptions/subscriptionsMethods';
 
 const JOB_NAME = 'psira-update';
 const SCHEDULE = '0 3 * * *';
@@ -19,14 +19,14 @@ async function run(): Promise<IJobResult> {
   let recordsUpdated = 0;
 
   try {
-    const expiredOfficers = await PsiraService.getExpiredOfficers();
+    const expiredOfficers = await getExpiredOfficers();
 
     if (expiredOfficers.length === 0) {
       return { jobName: JOB_NAME, startTime, endTime: new Date(), success: true, recordsProcessed: 0, recordsUpdated: 0, errors: [] };
     }
 
     const profileIds = [...new Set(expiredOfficers.map((o) => o.profile_id))];
-    const validProfileIds = await SubscriptionsService.getProfileIdsWithValidSubscription(profileIds);
+    const validProfileIds = await getProfileIdsWithValidSubscription(profileIds);
     const eligibleOfficers = expiredOfficers.filter((o) => validProfileIds.has(o.profile_id));
 
     if (eligibleOfficers.length === 0) {
@@ -37,7 +37,7 @@ async function run(): Promise<IJobResult> {
       recordsProcessed++;
 
       try {
-        const apiResults = await PsiraService.getApplicantDetailsBySiraNo(officer.sira_no);
+        const apiResults = await getApplicantDetailsBySiraNo(officer.sira_no);
 
         if (apiResults.length === 0 || !apiResults[0]) {
           Logger.warn(JOB_NAME, `No API results for SIRA No: ${officer.sira_no}`);
@@ -48,7 +48,7 @@ async function run(): Promise<IJobResult> {
         const needsUpdate = officer.expiry_date !== apiResult.ExpiryDate || officer.request_status !== apiResult.RequestStatus;
 
         if (needsUpdate) {
-          await PsiraService.updateOfficerFromApi(officer.id, {
+          await updateOfficerFromApi(officer.id, {
             expiry_date: apiResult.ExpiryDate,
             request_status: apiResult.RequestStatus,
           });

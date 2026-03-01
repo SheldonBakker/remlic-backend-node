@@ -2,98 +2,65 @@ import type { Response, NextFunction } from 'express';
 import type { AuthenticatedRequest } from '../../shared/types/request';
 import { ResponseUtil } from '../../shared/utils/response';
 import { HTTP_STATUS } from '../../shared/constants/httpStatus';
-import { HttpError } from '../../shared/types/errors/appError';
-import FirearmsService from '../../infrastructure/database/firearms/firearmsMethods';
+import { requireUser } from '../../shared/utils/authHelpers';
+import {
+  getFirearmsByUserId,
+  getFirearmById,
+  createFirearm,
+  updateFirearm,
+  deleteFirearm,
+} from '../../infrastructure/database/firearms/firearmsMethods';
 import { FirearmsValidation } from '../../infrastructure/database/firearms/validation';
 import { PaginationUtil } from '../../shared/utils/pagination';
 
-export default class FirearmsController {
-  public static getFirearms = async (
-    req: AuthenticatedRequest,
-    res: Response,
-    _next: NextFunction,
-  ): Promise<void> => {
-    const userId = req.user?.id;
-
-    if (!userId) {
-      throw new HttpError(HTTP_STATUS.UNAUTHORIZED, 'User not authenticated');
+export const list = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const { id: userId } = requireUser(req);
+    if (typeof req.query.id === 'string') {
+      const firearmId = FirearmsValidation.validateFirearmId(req.query.id);
+      const firearm = await getFirearmById(firearmId, userId);
+      ResponseUtil.success(res, { firearm }, HTTP_STATUS.OK);
+      return;
     }
-
     const params = PaginationUtil.parseQuery(req.query);
     const filters = FirearmsValidation.validateFilters(req.query);
-    const { items, pagination } = await FirearmsService.getFirearmsByUserId(userId, params, filters);
+    const { items, pagination } = await getFirearmsByUserId(userId, params, filters);
     ResponseUtil.success(res, { firearms: items }, HTTP_STATUS.OK, pagination);
-  };
+  } catch (error) {
+    next(error);
+  }
+};
 
-  public static getFirearmById = async (
-    req: AuthenticatedRequest,
-    res: Response,
-    _next: NextFunction,
-  ): Promise<void> => {
-    const userId = req.user?.id;
-
-    if (!userId) {
-      throw new HttpError(HTTP_STATUS.UNAUTHORIZED, 'User not authenticated');
-    }
-
-    const firearmId = FirearmsValidation.validateFirearmId(req.params.id);
-    const firearm = await FirearmsService.getFirearmById(firearmId, userId);
-    ResponseUtil.success(res, { firearm }, HTTP_STATUS.OK);
-  };
-
-  public static createFirearm = async (
-    req: AuthenticatedRequest,
-    res: Response,
-    _next: NextFunction,
-  ): Promise<void> => {
-    const userId = req.user?.id;
-
-    if (!userId) {
-      throw new HttpError(HTTP_STATUS.UNAUTHORIZED, 'User not authenticated');
-    }
-
+export const create = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const { id: userId } = requireUser(req);
     const validatedData = FirearmsValidation.validateCreateFirearm(req.body);
-    const firearm = await FirearmsService.createFirearm({
-      ...validatedData,
-      profile_id: userId,
-    });
+    const firearm = await createFirearm({ ...validatedData, profile_id: userId });
     ResponseUtil.success(res, { firearm }, HTTP_STATUS.CREATED);
-  };
+  } catch (error) {
+    next(error);
+  }
+};
 
-  public static updateFirearm = async (
-    req: AuthenticatedRequest,
-    res: Response,
-    _next: NextFunction,
-  ): Promise<void> => {
-    const userId = req.user?.id;
-
-    if (!userId) {
-      throw new HttpError(HTTP_STATUS.UNAUTHORIZED, 'User not authenticated');
-    }
-
+export const update = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const { id: userId } = requireUser(req);
     const firearmId = FirearmsValidation.validateFirearmId(req.params.id);
     const validatedData = FirearmsValidation.validateUpdateFirearm(req.body);
-    const firearm = await FirearmsService.updateFirearm({
-      ...validatedData,
-      id: firearmId,
-      profile_id: userId,
-    });
+    const firearm = await updateFirearm({ ...validatedData, id: firearmId, profile_id: userId });
     ResponseUtil.success(res, { firearm }, HTTP_STATUS.OK);
-  };
+  } catch (error) {
+    next(error);
+  }
+};
 
-  public static deleteFirearm = async (
-    req: AuthenticatedRequest,
-    res: Response,
-    _next: NextFunction,
-  ): Promise<void> => {
-    const userId = req.user?.id;
-
-    if (!userId) {
-      throw new HttpError(HTTP_STATUS.UNAUTHORIZED, 'User not authenticated');
-    }
-
+export const remove = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const { id: userId } = requireUser(req);
     const firearmId = FirearmsValidation.validateFirearmId(req.params.id);
-    await FirearmsService.deleteFirearm(firearmId, userId);
+    await deleteFirearm(firearmId, userId);
     ResponseUtil.success(res, { message: 'Firearm deleted successfully' }, HTTP_STATUS.OK);
-  };
-}
+  } catch (error) {
+    next(error);
+  }
+};

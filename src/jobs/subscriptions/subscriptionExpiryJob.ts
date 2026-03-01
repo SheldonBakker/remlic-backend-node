@@ -1,7 +1,7 @@
 import type { IJobResult } from '../types';
 import { CronService } from '../cronService';
 import Logger from '../../shared/utils/logger';
-import SubscriptionsService from '../../infrastructure/database/subscriptions/subscriptionsMethods';
+import { getExpiredActiveSubscriptions, bulkExpireSubscriptions } from '../../infrastructure/database/subscriptions/subscriptionsMethods';
 
 const JOB_NAME = 'subscription-expiry';
 const SCHEDULE = '0 0 * * *';
@@ -11,7 +11,7 @@ async function run(): Promise<IJobResult> {
   const startTime = new Date();
 
   try {
-    const expiredSubscriptions = await SubscriptionsService.getExpiredActiveSubscriptions();
+    const expiredSubscriptions = await getExpiredActiveSubscriptions();
     const recordsProcessed = expiredSubscriptions.length;
 
     if (recordsProcessed === 0) {
@@ -27,7 +27,7 @@ async function run(): Promise<IJobResult> {
     }
 
     const subscriptionIds = expiredSubscriptions.map((s) => s.id);
-    const recordsUpdated = await SubscriptionsService.bulkExpireSubscriptions(subscriptionIds);
+    const recordsUpdated = await bulkExpireSubscriptions(subscriptionIds);
 
     return {
       jobName: JOB_NAME,

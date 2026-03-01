@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import HealthController from '../controllers/healthController';
+import { check } from '../controllers/healthController.js';
 
 
 const router = Router();
@@ -52,6 +52,6 @@ const router = Router();
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.get('/', (HealthController.check));
+router.get('/', check);
 
 export default router;

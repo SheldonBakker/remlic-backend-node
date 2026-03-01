@@ -1,9 +1,12 @@
 import { Router } from 'express';
-import DashboardController from '../controllers/dashboardController';
-import { requireRole, UserRole } from '../middleware/authMiddleware';
-import { requireAnySubscription } from '../middleware/subscriptionMiddleware';
+import { listExpiring } from '../controllers/dashboardController.js';
+import { requireRole, UserRole } from '../middleware/authMiddleware.js';
+import { requireAnySubscription } from '../middleware/subscriptionMiddleware.js';
 
 const router = Router();
+
+router.use(requireRole(UserRole.USER));
+router.use(requireAnySubscription());
 
 /**
  * @swagger
@@ -139,6 +142,6 @@ const router = Router();
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.get('/expiring', requireRole(UserRole.USER), requireAnySubscription(), (DashboardController.getUpcomingExpiries));
+router.get('/expiring', listExpiring);
 
 export default router;

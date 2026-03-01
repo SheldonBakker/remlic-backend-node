@@ -13,7 +13,7 @@ export interface IApiResponse<T> {
 export interface IApiErrorResponse {
   success: false;
   error: string;
-  details: unknown | null;
+  details: unknown;
   timestamp: string;
   statusCode: number;
 }

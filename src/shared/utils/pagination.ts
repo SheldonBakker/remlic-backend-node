@@ -58,7 +58,7 @@ export class PaginationUtil {
     items: T[],
     limit: number,
   ): IPagination {
-    const lastItem = items[items.length - 1];
+    const lastItem = items.at(-1);
     if (!lastItem || items.length < limit) {
       return { nextCursor: null };
     }

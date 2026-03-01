@@ -1,9 +1,10 @@
 import { Router } from 'express';
-import ProfileController from '../controllers/profileController';
-
-import { requireRole, UserRole } from '../middleware/authMiddleware';
+import { get, remove } from '../controllers/profileController.js';
+import { requireRole, UserRole } from '../middleware/authMiddleware.js';
 
 const router = Router();
+
+router.use(requireRole(UserRole.USER));
 
 /**
  * @swagger
@@ -68,7 +69,7 @@ const router = Router();
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.get('/', requireRole(UserRole.USER), (ProfileController.getProfile));
+router.get('/', get);
 
 /**
  * @swagger
@@ -110,6 +111,6 @@ router.get('/', requireRole(UserRole.USER), (ProfileController.getProfile));
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.delete('/', requireRole(UserRole.USER), (ProfileController.deleteProfile));
+router.delete('/', remove);
 
 export default router;

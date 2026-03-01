@@ -1,9 +1,10 @@
 import { Router } from 'express';
-import RemindersController from '../controllers/remindersController';
-
-import { requireRole, UserRole } from '../middleware/authMiddleware';
+import { list, bulkUpdate, update, remove } from '../controllers/remindersController.js';
+import { requireRole, UserRole } from '../middleware/authMiddleware.js';
 
 const router = Router();
+
+router.use(requireRole(UserRole.USER));
 
 /**
  * @swagger
@@ -141,7 +142,7 @@ const router = Router();
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.get('/', requireRole(UserRole.USER), (RemindersController.getReminderSettings));
+router.get('/', list);
 
 /**
  * @swagger
@@ -194,7 +195,7 @@ router.get('/', requireRole(UserRole.USER), (RemindersController.getReminderSett
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.put('/', requireRole(UserRole.USER), (RemindersController.bulkUpdateReminderSettings));
+router.put('/', bulkUpdate);
 
 /**
  * @swagger
@@ -255,7 +256,7 @@ router.put('/', requireRole(UserRole.USER), (RemindersController.bulkUpdateRemin
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.patch('/:entityType', requireRole(UserRole.USER), (RemindersController.updateReminderSetting));
+router.patch('/:entityType', update);
 
 /**
  * @swagger
@@ -317,6 +318,6 @@ router.patch('/:entityType', requireRole(UserRole.USER), (RemindersController.up
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.delete('/:entityType', requireRole(UserRole.USER), (RemindersController.deleteReminderSetting));
+router.delete('/:entityType', remove);
 
 export default router;

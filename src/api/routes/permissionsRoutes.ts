@@ -1,9 +1,10 @@
 import { Router } from 'express';
-import PermissionsController from '../controllers/permissionsController';
-
-import { requireRole, UserRole } from '../middleware/authMiddleware';
+import { list, create, update, remove } from '../controllers/permissionsController.js';
+import { requireRole, UserRole } from '../middleware/authMiddleware.js';
 
 const router = Router();
+
+router.use(requireRole(UserRole.ADMIN));
 
 /**
  * @swagger
@@ -111,6 +112,12 @@ const router = Router();
  *           maximum: 100
  *           default: 20
  *         description: Number of items to return per page (default 20, max 100)
+ *       - in: query
+ *         name: id
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: If provided, return a single permission by ID instead of a list
  *     responses:
  *       200:
  *         description: Permissions retrieved successfully
@@ -146,56 +153,7 @@ const router = Router();
  *       403:
  *         description: Forbidden - Admin access required
  */
-router.get('/', requireRole(UserRole.ADMIN), (PermissionsController.getPermissions));
-
-/**
- * @swagger
- * /permissions/{id}:
- *   get:
- *     summary: Get a specific permission by ID (Admin only)
- *     description: Returns a single permission by its ID.
- *     tags:
- *       - Permissions
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *           format: uuid
- *         description: The permission ID
- *     responses:
- *       200:
- *         description: Permission retrieved successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: true
- *                 data:
- *                   type: object
- *                   properties:
- *                     permission:
- *                       $ref: '#/components/schemas/Permission'
- *                 timestamp:
- *                   type: string
- *                   format: date-time
- *                 statusCode:
- *                   type: integer
- *                   example: 200
- *       401:
- *         description: Unauthorized - Invalid or missing token
- *       403:
- *         description: Forbidden - Admin access required
- *       404:
- *         description: Permission not found
- */
-router.get('/:id', requireRole(UserRole.ADMIN), (PermissionsController.getPermissionById));
+router.get('/', list);
 
 /**
  * @swagger
@@ -242,7 +200,7 @@ router.get('/:id', requireRole(UserRole.ADMIN), (PermissionsController.getPermis
  *       403:
  *         description: Forbidden - Admin access required
  */
-router.post('/', requireRole(UserRole.ADMIN), (PermissionsController.createPermission));
+router.post('/', create);
 
 /**
  * @swagger
@@ -299,7 +257,7 @@ router.post('/', requireRole(UserRole.ADMIN), (PermissionsController.createPermi
  *       404:
  *         description: Permission not found
  */
-router.patch('/:id', requireRole(UserRole.ADMIN), (PermissionsController.updatePermission));
+router.patch('/:id', update);
 
 /**
  * @swagger
@@ -351,6 +309,6 @@ router.patch('/:id', requireRole(UserRole.ADMIN), (PermissionsController.updateP
  *       409:
  *         description: Conflict - Permission is linked to packages
  */
-router.delete('/:id', requireRole(UserRole.ADMIN), (PermissionsController.deletePermission));
+router.delete('/:id', remove);
 
 export default router;

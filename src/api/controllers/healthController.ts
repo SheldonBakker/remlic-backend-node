@@ -9,20 +9,17 @@ interface IHealthResponse {
   uptime: number;
 }
 
-export default class HealthController {
-  public static check = async (
-    _req: Request,
-    res: Response,
-    _next: NextFunction,
-  ): Promise<void> => {
+export const check = async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
     const healthData: IHealthResponse = {
       status: 'healthy',
       version: process.env.API_VERSION ?? 'v1',
       timestamp: new Date().toISOString(),
       uptime: process.uptime(),
     };
-
     await Promise.resolve();
     ResponseUtil.success(res, healthData, HTTP_STATUS.OK);
-  };
-}
+  } catch (error) {
+    next(error);
+  }
+};

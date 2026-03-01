@@ -2,82 +2,60 @@ import type { Response, NextFunction } from 'express';
 import type { AuthenticatedRequest } from '../../shared/types/request';
 import { ResponseUtil } from '../../shared/utils/response';
 import { HTTP_STATUS } from '../../shared/constants/httpStatus';
-import { HttpError } from '../../shared/types/errors/appError';
-import RemindersService from '../../infrastructure/database/reminders/remindersMethods';
+import { requireUser } from '../../shared/utils/authHelpers';
+import {
+  getAllSettings,
+  upsertSetting,
+  bulkUpsertSettings,
+  deleteSetting,
+} from '../../infrastructure/database/reminders/remindersMethods';
 import { RemindersValidation } from '../../infrastructure/database/reminders/validation';
 
-export default class RemindersController {
-  public static getReminderSettings = async (
-    req: AuthenticatedRequest,
-    res: Response,
-    _next: NextFunction,
-  ): Promise<void> => {
-    const userId = req.user?.id;
-
-    if (!userId) {
-      throw new HttpError(HTTP_STATUS.UNAUTHORIZED, 'User not authenticated');
-    }
-
-    const settings = await RemindersService.getAllSettings(userId);
-
+export const list = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const { id: userId } = requireUser(req);
+    const settings = await getAllSettings(userId);
     ResponseUtil.success(res, { settings }, HTTP_STATUS.OK);
-  };
+  } catch (error) {
+    next(error);
+  }
+};
 
-  public static updateReminderSetting = async (
-    req: AuthenticatedRequest,
-    res: Response,
-    _next: NextFunction,
-  ): Promise<void> => {
-    const userId = req.user?.id;
-
-    if (!userId) {
-      throw new HttpError(HTTP_STATUS.UNAUTHORIZED, 'User not authenticated');
-    }
-
+export const update = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const { id: userId } = requireUser(req);
     const entityType = RemindersValidation.validateEntityType(req.params.entityType);
     const validatedData = RemindersValidation.validateUpdateReminderSetting(req.body);
-
-    const setting = await RemindersService.upsertSetting({
+    const setting = await upsertSetting({
       profile_id: userId,
       entity_type: entityType,
       reminder_days: validatedData.reminder_days ?? [],
       is_enabled: validatedData.is_enabled ?? true,
     });
-
     ResponseUtil.success(res, { setting }, HTTP_STATUS.OK);
-  };
+  } catch (error) {
+    next(error);
+  }
+};
 
-  public static bulkUpdateReminderSettings = async (
-    req: AuthenticatedRequest,
-    res: Response,
-    _next: NextFunction,
-  ): Promise<void> => {
-    const userId = req.user?.id;
-
-    if (!userId) {
-      throw new HttpError(HTTP_STATUS.UNAUTHORIZED, 'User not authenticated');
-    }
-
+export const bulkUpdate = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const { id: userId } = requireUser(req);
     const validatedData = RemindersValidation.validateBulkUpdate(req.body);
-    const settings = await RemindersService.bulkUpsertSettings(userId, validatedData.settings);
-
+    const settings = await bulkUpsertSettings(userId, validatedData.settings);
     ResponseUtil.success(res, { settings }, HTTP_STATUS.OK);
-  };
+  } catch (error) {
+    next(error);
+  }
+};
 
-  public static deleteReminderSetting = async (
-    req: AuthenticatedRequest,
-    res: Response,
-    _next: NextFunction,
-  ): Promise<void> => {
-    const userId = req.user?.id;
-
-    if (!userId) {
-      throw new HttpError(HTTP_STATUS.UNAUTHORIZED, 'User not authenticated');
-    }
-
+export const remove = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const { id: userId } = requireUser(req);
     const entityType = RemindersValidation.validateEntityType(req.params.entityType);
-    await RemindersService.deleteSetting(userId, entityType);
-
+    await deleteSetting(userId, entityType);
     ResponseUtil.success(res, { message: 'Reminder setting deleted successfully' }, HTTP_STATUS.OK);
-  };
-}
+  } catch (error) {
+    next(error);
+  }
+};

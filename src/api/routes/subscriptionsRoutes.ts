@@ -1,7 +1,11 @@
 import { Router } from 'express';
-import SubscriptionsController from '../controllers/subscriptionsController';
-
-import { requireRole, UserRole } from '../middleware/authMiddleware';
+import {
+  updateSubscriptionHandler,
+  cancelSubscriptionHandler,
+  getMySubscriptions,
+  subscriptionActionHandler,
+} from '../controllers/subscriptionsController.js';
+import { requireRole, UserRole } from '../middleware/authMiddleware.js';
 
 const router = Router();
 
@@ -40,6 +44,23 @@ const router = Router();
  *           type: string
  *           nullable: true
  *           example: "sub_abc123_def456"
+ *         paystack_subscription_code:
+ *           type: string
+ *           nullable: true
+ *           example: "SUB_abc123"
+ *         paystack_customer_code:
+ *           type: string
+ *           nullable: true
+ *           example: "CUS_abc123"
+ *         paystack_email_token:
+ *           type: string
+ *           nullable: true
+ *           example: "token_abc123"
+ *         current_period_end:
+ *           type: string
+ *           format: date
+ *           nullable: true
+ *           example: "2024-12-31"
  *         refunded_at:
  *           type: string
  *           format: date-time
@@ -112,22 +133,50 @@ const router = Router();
  *         certificate_access:
  *           type: boolean
  *           example: false
+ *         drivers_access:
+ *           type: boolean
+ *           example: true
  *         active_subscriptions:
  *           type: integer
  *           example: 2
+ *     InitializeSubscriptionResponse:
+ *       type: object
+ *       properties:
+ *         authorization_url:
+ *           type: string
+ *           format: uri
+ *           example: "https://checkout.paystack.com/abc123"
+ *         reference:
+ *           type: string
+ *           example: "ref_abc123"
+ *         access_code:
+ *           type: string
+ *           example: "access_abc123"
+ *     SubscriptionMessageResponse:
+ *       type: object
+ *       properties:
+ *         message:
+ *           type: string
+ *           example: "Subscription cancelled successfully"
  */
 
 /**
  * @swagger
- * /subscriptions/me:
+ * /subscriptions:
  *   get:
- *     summary: Get current user's subscriptions
- *     description: Returns a paginated list of the authenticated user's subscriptions.
+ *     summary: Get subscriptions (role-scoped)
+ *     description: Paginated list of subscriptions filtered by status. Admins see all users; regular users see only their own.
  *     tags:
  *       - Subscriptions
  *     security:
  *       - bearerAuth: []
  *     parameters:
+ *       - in: query
+ *         name: status
+ *         schema:
+ *           type: string
+ *           enum: [active, expired, cancelled, refunded]
+ *         description: "Filter by subscription status (default: active)"
  *       - in: query
  *         name: cursor
  *         schema:
@@ -163,7 +212,7 @@ const router = Router();
  *                   type: object
  *                   properties:
  *                     nextCursor:
- *                       type: object
+ *                       type: string
  *                       nullable: true
  *                 timestamp:
  *                   type: string
@@ -174,114 +223,63 @@ const router = Router();
  *       401:
  *         description: Unauthorized - Invalid or missing token
  */
-router.get('/me', requireRole(UserRole.USER, UserRole.ADMIN), (SubscriptionsController.getMySubscriptions));
+router.get('/', requireRole(UserRole.USER, UserRole.ADMIN), getMySubscriptions);
 
 /**
  * @swagger
- * /subscriptions/me/permissions:
- *   get:
- *     summary: Get current user's aggregated permissions
- *     description: Returns the aggregated permissions from all active subscriptions for the authenticated user.
- *     tags:
- *       - Subscriptions
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       200:
- *         description: User permissions retrieved successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: true
- *                 data:
- *                   type: object
- *                   properties:
- *                     permissions:
- *                       $ref: '#/components/schemas/UserPermissions'
- *                 timestamp:
- *                   type: string
- *                   format: date-time
- *                 statusCode:
- *                   type: integer
- *                   example: 200
- *       401:
- *         description: Unauthorized - Invalid or missing token
- */
-router.get('/me/permissions', requireRole(UserRole.USER, UserRole.ADMIN), (SubscriptionsController.getMyPermissions));
-
-/**
- * @swagger
- * /subscriptions/me/current:
- *   get:
- *     summary: Get current user's active subscription
- *     description: Returns the current active subscription for the authenticated user.
- *     tags:
- *       - Subscriptions
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       200:
- *         description: Current subscription retrieved successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: true
- *                 data:
- *                   type: object
- *                   properties:
- *                     subscription:
- *                       $ref: '#/components/schemas/SubscriptionWithPackage'
- *                       nullable: true
- *                 timestamp:
- *                   type: string
- *                   format: date-time
- *                 statusCode:
- *                   type: integer
- *                   example: 200
- *       401:
- *         description: Unauthorized - Invalid or missing token
- */
-router.get('/me/current', requireRole(UserRole.USER, UserRole.ADMIN), (SubscriptionsController.getMyCurrentSubscription));
-
-/**
- * @swagger
- * /subscriptions/initialize:
+ * /subscriptions:
  *   post:
- *     summary: Initialize a subscription payment
- *     description: Initializes a Paystack payment session for a subscription plan.
+ *     summary: Perform a subscription action
+ *     description: |
+ *       Dispatches a subscription action based on the `action` query parameter.
+ *       - `initialize`: Start a Paystack payment session (body: `package_id`, `callback_url`)
+ *       - `cancel`: Cancel a subscription. Admins bypass ownership checks. (query: `id`)
+ *       - `refund`: Refund a subscription. (query: `id`)
+ *       - `change-plan`: Change subscription plan. (query: `id`, body: `new_package_id`, `callback_url`)
  *     tags:
  *       - Subscriptions
  *     security:
  *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: action
+ *         required: true
+ *         schema:
+ *           type: string
+ *           enum: [initialize, cancel, refund, change-plan]
+ *         description: The action to perform
+ *       - in: query
+ *         name: id
+ *         required: false
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: The subscription ID (required for cancel, refund, change-plan)
  *     requestBody:
- *       required: true
+ *       required: false
  *       content:
  *         application/json:
  *           schema:
  *             type: object
- *             required:
- *               - package_id
- *               - callback_url
  *             properties:
  *               package_id:
  *                 type: string
  *                 format: uuid
+ *                 description: Required for initialize
+ *                 example: "123e4567-e89b-12d3-a456-426614174000"
+ *               new_package_id:
+ *                 type: string
+ *                 format: uuid
+ *                 description: Required for change-plan
  *                 example: "123e4567-e89b-12d3-a456-426614174000"
  *               callback_url:
  *                 type: string
  *                 format: uri
+ *                 description: Required for initialize and change-plan
  *                 example: "https://example.com/payment/callback"
  *     responses:
  *       200:
- *         description: Payment session initialized successfully
+ *         description: Action performed successfully
  *         content:
  *           application/json:
  *             schema:
@@ -291,17 +289,13 @@ router.get('/me/current', requireRole(UserRole.USER, UserRole.ADMIN), (Subscript
  *                   type: boolean
  *                   example: true
  *                 data:
- *                   type: object
- *                   properties:
- *                     authorization_url:
- *                       type: string
- *                       example: "https://checkout.paystack.com/xxx"
- *                     reference:
- *                       type: string
- *                       example: "sub_abc123_def456"
- *                     access_code:
- *                       type: string
- *                       example: "access_code_here"
+ *                   oneOf:
+ *                     - $ref: '#/components/schemas/InitializeSubscriptionResponse'
+ *                     - $ref: '#/components/schemas/SubscriptionMessageResponse'
+ *                   description: |
+ *                     Shape depends on action:
+ *                     - `initialize` / `change-plan`: `InitializeSubscriptionResponse` (authorization_url, reference, access_code)
+ *                     - `cancel` / `refund`: `SubscriptionMessageResponse` (message)
  *                 timestamp:
  *                   type: string
  *                   format: date-time
@@ -309,105 +303,7 @@ router.get('/me/current', requireRole(UserRole.USER, UserRole.ADMIN), (Subscript
  *                   type: integer
  *                   example: 200
  *       400:
- *         description: Bad request - Invalid input data
- *       401:
- *         description: Unauthorized - Invalid or missing token
- */
-router.post('/initialize', requireRole(UserRole.USER, UserRole.ADMIN), (SubscriptionsController.initializeSubscription));
-
-/**
- * @swagger
- * /subscriptions/me/{id}/cancel:
- *   post:
- *     summary: Cancel user's subscription
- *     description: Cancels the user's subscription. This will cancel the subscription on Paystack and mark it as cancelled locally.
- *     tags:
- *       - Subscriptions
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *           format: uuid
- *         description: The subscription ID
- *     responses:
- *       200:
- *         description: Subscription cancelled successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: true
- *                 data:
- *                   type: object
- *                   properties:
- *                     message:
- *                       type: string
- *                       example: "Subscription cancelled successfully"
- *                 timestamp:
- *                   type: string
- *                   format: date-time
- *                 statusCode:
- *                   type: integer
- *                   example: 200
- *       401:
- *         description: Unauthorized - Invalid or missing token
- *       403:
- *         description: Forbidden - Not the subscription owner
- *       404:
- *         description: Subscription not found
- */
-router.post('/me/:id/cancel', requireRole(UserRole.USER, UserRole.ADMIN), (SubscriptionsController.cancelMySubscription));
-
-/**
- * @swagger
- * /subscriptions/me/{id}/refund:
- *   post:
- *     summary: Request a refund for subscription
- *     description: Requests a refund for the user's subscription. Refunds are only available within 7 days of purchase and only for active subscriptions.
- *     tags:
- *       - Subscriptions
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *           format: uuid
- *         description: The subscription ID
- *     responses:
- *       200:
- *         description: Subscription refunded successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: true
- *                 data:
- *                   type: object
- *                   properties:
- *                     message:
- *                       type: string
- *                       example: "Subscription refunded successfully"
- *                 timestamp:
- *                   type: string
- *                   format: date-time
- *                 statusCode:
- *                   type: integer
- *                   example: 200
- *       400:
- *         description: Bad request - Refund period exceeded, subscription not active, or already refunded
+ *         description: Bad request - Invalid action or input data
  *       401:
  *         description: Unauthorized - Invalid or missing token
  *       403:
@@ -415,254 +311,9 @@ router.post('/me/:id/cancel', requireRole(UserRole.USER, UserRole.ADMIN), (Subsc
  *       404:
  *         description: Subscription not found
  *       502:
- *         description: Bad gateway - Failed to process refund with payment provider
+ *         description: Bad gateway - Failed to process with payment provider
  */
-router.post('/me/:id/refund', requireRole(UserRole.USER, UserRole.ADMIN), (SubscriptionsController.refundMySubscription));
-
-/**
- * @swagger
- * /subscriptions/me/{id}/change-plan:
- *   post:
- *     summary: Change subscription plan
- *     description: Upgrades or downgrades the user's subscription to a different plan. Cancels the current subscription and initializes a new payment session for the new plan.
- *     tags:
- *       - Subscriptions
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *           format: uuid
- *         description: The current subscription ID
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - new_package_id
- *               - callback_url
- *             properties:
- *               new_package_id:
- *                 type: string
- *                 format: uuid
- *                 example: "123e4567-e89b-12d3-a456-426614174000"
- *               callback_url:
- *                 type: string
- *                 format: uri
- *                 example: "https://example.com/payment/callback"
- *     responses:
- *       200:
- *         description: Plan change initiated successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: true
- *                 data:
- *                   type: object
- *                   properties:
- *                     authorization_url:
- *                       type: string
- *                       example: "https://checkout.paystack.com/xxx"
- *                     reference:
- *                       type: string
- *                       example: "sub_abc123_def456"
- *                     access_code:
- *                       type: string
- *                       example: "access_code_here"
- *                 timestamp:
- *                   type: string
- *                   format: date-time
- *                 statusCode:
- *                   type: integer
- *                   example: 200
- *       400:
- *         description: Bad request - Invalid input data or already subscribed to this package
- *       401:
- *         description: Unauthorized - Invalid or missing token
- *       403:
- *         description: Forbidden - Not the subscription owner
- *       404:
- *         description: Subscription or package not found
- */
-router.post('/me/:id/change-plan', requireRole(UserRole.USER, UserRole.ADMIN), (SubscriptionsController.changeSubscriptionPlan));
-
-/**
- * @swagger
- * /subscriptions:
- *   get:
- *     summary: Get all subscriptions (Admin only)
- *     description: Returns a paginated list of all subscriptions with their packages and permissions.
- *     tags:
- *       - Subscriptions
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: query
- *         name: cursor
- *         schema:
- *           type: string
- *         description: Base64-encoded cursor for pagination. Omit for first page.
- *       - in: query
- *         name: limit
- *         schema:
- *           type: integer
- *           minimum: 1
- *           maximum: 100
- *           default: 20
- *         description: Number of items to return per page (default 20, max 100)
- *       - in: query
- *         name: status
- *         schema:
- *           type: string
- *           enum: [active, expired, cancelled, refunded]
- *         description: Filter by subscription status
- *       - in: query
- *         name: profile_id
- *         schema:
- *           type: string
- *           format: uuid
- *         description: Filter by user profile ID
- *     responses:
- *       200:
- *         description: Subscriptions retrieved successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: true
- *                 data:
- *                   type: object
- *                   properties:
- *                     subscriptions:
- *                       type: array
- *                       items:
- *                         $ref: '#/components/schemas/SubscriptionWithPackage'
- *                 pagination:
- *                   type: object
- *                   properties:
- *                     nextCursor:
- *                       type: object
- *                       nullable: true
- *                 timestamp:
- *                   type: string
- *                   format: date-time
- *                 statusCode:
- *                   type: integer
- *                   example: 200
- *       401:
- *         description: Unauthorized - Invalid or missing token
- *       403:
- *         description: Forbidden - Admin access required
- */
-router.get('/', requireRole(UserRole.ADMIN), (SubscriptionsController.getSubscriptions));
-
-/**
- * @swagger
- * /subscriptions/{id}:
- *   get:
- *     summary: Get a subscription by ID (Admin only)
- *     description: Returns a single subscription by its ID.
- *     tags:
- *       - Subscriptions
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *           format: uuid
- *         description: The subscription ID
- *     responses:
- *       200:
- *         description: Subscription retrieved successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: true
- *                 data:
- *                   type: object
- *                   properties:
- *                     subscription:
- *                       $ref: '#/components/schemas/SubscriptionWithPackage'
- *                 timestamp:
- *                   type: string
- *                   format: date-time
- *                 statusCode:
- *                   type: integer
- *                   example: 200
- *       401:
- *         description: Unauthorized - Invalid or missing token
- *       403:
- *         description: Forbidden - Admin access required
- *       404:
- *         description: Subscription not found
- */
-router.get('/:id', requireRole(UserRole.ADMIN), (SubscriptionsController.getSubscriptionById));
-
-/**
- * @swagger
- * /subscriptions:
- *   post:
- *     summary: Create a subscription (Admin only)
- *     description: Assigns a package to a user by creating a new subscription.
- *     tags:
- *       - Subscriptions
- *     security:
- *       - bearerAuth: []
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             $ref: '#/components/schemas/CreateSubscriptionRequest'
- *     responses:
- *       201:
- *         description: Subscription created successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: true
- *                 data:
- *                   type: object
- *                   properties:
- *                     subscription:
- *                       $ref: '#/components/schemas/Subscription'
- *                 timestamp:
- *                   type: string
- *                   format: date-time
- *                 statusCode:
- *                   type: integer
- *                   example: 201
- *       400:
- *         description: Bad request - Invalid input data, invalid profile ID, or invalid package ID
- *       401:
- *         description: Unauthorized - Invalid or missing token
- *       403:
- *         description: Forbidden - Admin access required
- */
-router.post('/', requireRole(UserRole.ADMIN), (SubscriptionsController.createSubscription));
+router.post('/', requireRole(UserRole.USER, UserRole.ADMIN), subscriptionActionHandler);
 
 /**
  * @swagger
@@ -719,7 +370,7 @@ router.post('/', requireRole(UserRole.ADMIN), (SubscriptionsController.createSub
  *       404:
  *         description: Subscription not found
  */
-router.patch('/:id', requireRole(UserRole.ADMIN), (SubscriptionsController.updateSubscription));
+router.patch('/:id', requireRole(UserRole.ADMIN), updateSubscriptionHandler);
 
 /**
  * @swagger
@@ -769,6 +420,6 @@ router.patch('/:id', requireRole(UserRole.ADMIN), (SubscriptionsController.updat
  *       404:
  *         description: Subscription not found
  */
-router.delete('/:id', requireRole(UserRole.ADMIN), (SubscriptionsController.cancelSubscription));
+router.delete('/:id', requireRole(UserRole.ADMIN), cancelSubscriptionHandler);
 
 export default router;

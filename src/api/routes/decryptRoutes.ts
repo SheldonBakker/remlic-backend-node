@@ -1,8 +1,9 @@
 import { Router } from 'express';
-import DecryptController from '../controllers/decryptController';
+import { decrypt } from '../controllers/decryptController.js';
+import { requireRole, UserRole } from '../middleware/authMiddleware.js';
 
 const router = Router();
-
+router.use(requireRole(UserRole.USER));
 /**
  * @swagger
  * components:
@@ -194,6 +195,6 @@ const router = Router();
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.post('/:type', (DecryptController.decrypt));
+router.post('/:type', decrypt);
 
 export default router;

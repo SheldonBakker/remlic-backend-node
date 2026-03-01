@@ -2,7 +2,7 @@
 import type { IJobResult, IJobError } from '../types';
 import { CronService } from '../cronService';
 import Logger from '../../shared/utils/logger';
-import RemindersService from '../../infrastructure/database/reminders/remindersMethods';
+import { getExpiringRemindersBatch } from '../../infrastructure/database/reminders/remindersMethods';
 import { EmailService } from '../../infrastructure/email/emailService';
 
 const JOB_NAME = 'license-reminders';
@@ -21,7 +21,7 @@ async function run(): Promise<IJobResult> {
     let hasMore = true;
 
     while (hasMore) {
-      const { items, nextCursor } = await RemindersService.getExpiringRemindersBatch(BATCH_SIZE, cursor);
+      const { items, nextCursor } = await getExpiringRemindersBatch(BATCH_SIZE, cursor);
 
       if (items.length === 0) {
         break;

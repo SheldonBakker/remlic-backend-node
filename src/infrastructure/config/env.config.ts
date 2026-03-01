@@ -35,6 +35,7 @@ export interface IConfig {
 class ConfigService {
   private static config: IConfig | null = null;
 
+  // eslint-disable-next-line complexity
   private static loadConfig(): IConfig {
     return {
       app: {

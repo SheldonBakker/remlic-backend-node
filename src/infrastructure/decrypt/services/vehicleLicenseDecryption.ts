@@ -32,6 +32,7 @@ function decrypt(
   return decryptSixBlockPayload(encrypted, block128Key, block74Key);
 }
 
+// eslint-disable-next-line complexity
 function parseVehicleLicense(decryptedData: Uint8Array): ISAVehicleLicense {
   const strings = parseStrings(decryptedData);
   const nibbles = bytesToNibbles(decryptedData);
@@ -182,6 +183,7 @@ function findExpiryDateInStrings(strings: string[]): string | null {
   return null;
 }
 
+// eslint-disable-next-line complexity
 function findExpiryDate(nibbles: number[]): string | null {
   for (let i = 0; i < nibbles.length - 8; i++) {
     const year = (nibbles[i] ?? 0) * 1000 + (nibbles[i + 1] ?? 0) * 100 + (nibbles[i + 2] ?? 0) * 10 + (nibbles[i + 3] ?? 0);
@@ -225,6 +227,7 @@ function parseStrings(bytes: Uint8Array): string[] {
   return result.filter(s => s.length > 0);
 }
 
+// eslint-disable-next-line complexity
 function isModelCandidate(
   token: string,
   ctx: { make: string; registration: string; vin: string; color: string; vehicleClass: string; expiry: string | null },

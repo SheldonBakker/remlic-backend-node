@@ -1,6 +1,15 @@
 import { randomUUID } from 'crypto';
-import SubscriptionsService from '../infrastructure/database/subscriptions/subscriptionsMethods';
-import PackagesService from '../infrastructure/database/packages/packagesMethods';
+import {
+  getUserActiveSubscription,
+  cancelSubscription,
+  markCancelledByPaystack,
+  createFromPaystack,
+  getByPaystackCode,
+  renewSubscription,
+  getSubscriptionById,
+  markRefunded,
+} from '../infrastructure/database/subscriptions/subscriptionsMethods';
+import { getPackageById } from '../infrastructure/database/packages/packagesMethods';
 import type {
   IInitializeSubscriptionRequest,
   IInitializeSubscriptionResponse,
@@ -26,11 +35,11 @@ export class SubscriptionUseCases {
     userId: string,
     request: IInitializeSubscriptionRequest,
   ): Promise<IInitializeSubscriptionResponse> {
-    const existingSubscription = await SubscriptionsService.getUserActiveSubscription(userId);
+    const existingSubscription = await getUserActiveSubscription(userId);
     if (existingSubscription) {
       const isFreeTrial = existingSubscription.app_packages.slug === 'free-trial';
       if (isFreeTrial) {
-        await SubscriptionsService.cancelSubscription(existingSubscription.id);
+        await cancelSubscription(existingSubscription.id);
         Logger.info('SUBSCRIPTION_USE_CASES', `Auto-cancelled free trial for user ${userId} upgrading to paid plan`);
       } else {
         if (existingSubscription.package_id === request.package_id) {
@@ -43,10 +52,11 @@ export class SubscriptionUseCases {
       }
     }
 
-    const [profile] = await db
+    const profile = await db
       .select({ id: profiles.id, email: profiles.email })
       .from(profiles)
-      .where(eq(profiles.id, userId));
+      .where(eq(profiles.id, userId))
+      .then((rows) => rows.at(0));
 
     if (!profile) {
       throw new HttpError(HTTP_STATUS.NOT_FOUND, 'User profile not found');
@@ -56,7 +66,7 @@ export class SubscriptionUseCases {
       throw new HttpError(HTTP_STATUS.BAD_REQUEST, 'User email is required for subscription');
     }
 
-    const pkg = await PackagesService.getPackageById(request.package_id);
+    const pkg = await getPackageById(request.package_id);
 
     if (!pkg.paystack_plan_code) {
       throw new HttpError(HTTP_STATUS.BAD_REQUEST, 'Package does not have a Paystack plan configured');
@@ -98,7 +108,7 @@ export class SubscriptionUseCases {
       case 'subscription.disable':
       case 'subscription.not_renew':
         if (data.subscription_code) {
-          await SubscriptionsService.markCancelledByPaystack(data.subscription_code);
+          await markCancelledByPaystack(data.subscription_code);
         }
         break;
 
@@ -146,7 +156,7 @@ export class SubscriptionUseCases {
     userId: string,
     packageId: string,
   ): Promise<void> {
-    const pkg = await PackagesService.getPackageById(packageId);
+    const pkg = await getPackageById(packageId);
     const endDate = new Date();
     if (pkg.type === 'yearly') {
       endDate.setFullYear(endDate.getFullYear() + 1);
@@ -166,7 +176,7 @@ export class SubscriptionUseCases {
       }
     }
 
-    await SubscriptionsService.createFromPaystack({
+    await createFromPaystack({
       profile_id: userId,
       package_id: packageId,
       paystack_subscription_code: subscriptionCode,
@@ -178,7 +188,7 @@ export class SubscriptionUseCases {
   }
 
   private static async renewExistingSubscription(subscriptionCode: string): Promise<void> {
-    const subscription = await SubscriptionsService.getByPaystackCode(subscriptionCode);
+    const subscription = await getByPaystackCode(subscriptionCode);
     if (!subscription) {
       Logger.warn('SUBSCRIPTION_USE_CASES', `Subscription not found: ${subscriptionCode}`);
       return;
@@ -195,11 +205,11 @@ export class SubscriptionUseCases {
       newEnd.setMonth(newEnd.getMonth() + 1);
     }
 
-    await SubscriptionsService.renewSubscription(subscriptionCode, newEnd.toISOString());
+    await renewSubscription(subscriptionCode, newEnd.toISOString());
   }
 
   public static async cancelSubscription(userId: string, subscriptionId: string): Promise<void> {
-    const subscription = await SubscriptionsService.getSubscriptionById(subscriptionId);
+    const subscription = await getSubscriptionById(subscriptionId);
 
     if (subscription.profile_id !== userId) {
       throw new HttpError(HTTP_STATUS.FORBIDDEN, 'Not authorized to cancel this subscription');
@@ -237,13 +247,13 @@ export class SubscriptionUseCases {
       }
     }
 
-    await SubscriptionsService.cancelSubscription(subscriptionId);
+    await cancelSubscription(subscriptionId);
   }
 
   private static readonly REFUND_WINDOW_DAYS = 7;
 
   public static async refundSubscription(userId: string, subscriptionId: string): Promise<void> {
-    const subscription = await SubscriptionsService.getSubscriptionById(subscriptionId);
+    const subscription = await getSubscriptionById(subscriptionId);
 
     if (subscription.profile_id !== userId) {
       throw new HttpError(HTTP_STATUS.FORBIDDEN, 'Not authorized to refund this subscription');
@@ -292,7 +302,7 @@ export class SubscriptionUseCases {
       throw new HttpError(HTTP_STATUS.BAD_GATEWAY, 'Failed to process refund with payment provider');
     }
 
-    await SubscriptionsService.markRefunded(subscriptionId);
+    await markRefunded(subscriptionId);
   }
 
   public static async changePlan(
@@ -300,7 +310,7 @@ export class SubscriptionUseCases {
     subscriptionId: string,
     request: IChangePlanRequest,
   ): Promise<IInitializeSubscriptionResponse> {
-    const currentSubscription = await SubscriptionsService.getSubscriptionById(subscriptionId);
+    const currentSubscription = await getSubscriptionById(subscriptionId);
 
     if (currentSubscription.profile_id !== userId) {
       throw new HttpError(HTTP_STATUS.FORBIDDEN, 'Not authorized to modify this subscription');
@@ -314,7 +324,7 @@ export class SubscriptionUseCases {
       throw new HttpError(HTTP_STATUS.BAD_REQUEST, 'Already subscribed to this package');
     }
 
-    const newPackage = await PackagesService.getPackageById(request.new_package_id);
+    const newPackage = await getPackageById(request.new_package_id);
     if (!newPackage.paystack_plan_code) {
       throw new HttpError(HTTP_STATUS.BAD_REQUEST, 'New package does not have a Paystack plan');
     }
@@ -330,7 +340,7 @@ export class SubscriptionUseCases {
       }
     }
 
-    await SubscriptionsService.cancelSubscription(subscriptionId);
+    await cancelSubscription(subscriptionId);
 
     const initResult = await SubscriptionUseCases.initializeSubscription(userId, {
       package_id: request.new_package_id,
@@ -341,6 +351,6 @@ export class SubscriptionUseCases {
   }
 
   public static async getCurrentSubscription(userId: string): Promise<ISubscriptionWithPackage | null> {
-    return SubscriptionsService.getUserActiveSubscription(userId);
+    return getUserActiveSubscription(userId);
   }
 }

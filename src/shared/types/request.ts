@@ -14,3 +14,4 @@ export interface AuthenticatedRequest extends Request {
   user?: IAuthUser;
   requestId?: string;
 }
+

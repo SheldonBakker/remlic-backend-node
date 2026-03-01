@@ -29,6 +29,7 @@ const isValidRole = (role: unknown): role is UserRole => {
 };
 
 export const requireRole = (...allowedRoles: UserRole[]) => {
+  // eslint-disable-next-line complexity
   return async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
     try {
       const authHeader = req.headers.authorization;

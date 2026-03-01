@@ -8,10 +8,11 @@ const FREE_TRIAL_SLUG = 'free-trial';
 export class FreeTrialService {
   public static async grantFreeTrial(userId: string): Promise<void> {
     try {
-      const [pkg] = await db
+      const pkg = await db
         .select({ id: appPackages.id })
         .from(appPackages)
-        .where(and(eq(appPackages.slug, FREE_TRIAL_SLUG), eq(appPackages.is_active, true)));
+        .where(and(eq(appPackages.slug, FREE_TRIAL_SLUG), eq(appPackages.is_active, true)))
+        .then((rows) => rows.at(0));
 
       if (!pkg) {
         Logger.warn('FREE_TRIAL_SERVICE', 'Free trial package not found, skipping trial grant');

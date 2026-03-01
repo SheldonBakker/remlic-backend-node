@@ -2,90 +2,59 @@ import type { Response, NextFunction } from 'express';
 import type { AuthenticatedRequest } from '../../shared/types/request';
 import { ResponseUtil } from '../../shared/utils/response';
 import { HTTP_STATUS } from '../../shared/constants/httpStatus';
-import { HttpError } from '../../shared/types/errors/appError';
-import PermissionsService from '../../infrastructure/database/permissions/permissionsMethods';
+import {
+  getPermissions,
+  getPermissionById,
+  createPermission,
+  updatePermission,
+  deletePermission,
+} from '../../infrastructure/database/permissions/permissionsMethods';
 import { PermissionsValidation } from '../../infrastructure/database/permissions/validation';
 import { PaginationUtil } from '../../shared/utils/pagination';
 
-export default class PermissionsController {
-  public static getPermissions = async (
-    req: AuthenticatedRequest,
-    res: Response,
-    _next: NextFunction,
-  ): Promise<void> => {
-    const userId = req.user?.id;
-
-    if (!userId) {
-      throw new HttpError(HTTP_STATUS.UNAUTHORIZED, 'User not authenticated');
+export const list = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    if (typeof req.query.id === 'string') {
+      const permissionId = PermissionsValidation.validatePermissionId(req.query.id);
+      const permission = await getPermissionById(permissionId);
+      ResponseUtil.success(res, { permission }, HTTP_STATUS.OK);
+      return;
     }
-
     const params = PaginationUtil.parseQuery(req.query);
-    const { items, pagination } = await PermissionsService.getPermissions(params);
+    const { items, pagination } = await getPermissions(params);
     ResponseUtil.success(res, { permissions: items }, HTTP_STATUS.OK, pagination);
-  };
+  } catch (error) {
+    next(error);
+  }
+};
 
-  public static getPermissionById = async (
-    req: AuthenticatedRequest,
-    res: Response,
-    _next: NextFunction,
-  ): Promise<void> => {
-    const userId = req.user?.id;
-
-    if (!userId) {
-      throw new HttpError(HTTP_STATUS.UNAUTHORIZED, 'User not authenticated');
-    }
-
-    const permissionId = PermissionsValidation.validatePermissionId(req.params.id);
-    const permission = await PermissionsService.getPermissionById(permissionId);
-    ResponseUtil.success(res, { permission }, HTTP_STATUS.OK);
-  };
-
-  public static createPermission = async (
-    req: AuthenticatedRequest,
-    res: Response,
-    _next: NextFunction,
-  ): Promise<void> => {
-    const userId = req.user?.id;
-
-    if (!userId) {
-      throw new HttpError(HTTP_STATUS.UNAUTHORIZED, 'User not authenticated');
-    }
-
+export const create = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
+  try {
     const validatedData = PermissionsValidation.validateCreatePermission(req.body);
-    const permission = await PermissionsService.createPermission(validatedData);
+    const permission = await createPermission(validatedData);
     ResponseUtil.success(res, { permission }, HTTP_STATUS.CREATED);
-  };
+  } catch (error) {
+    next(error);
+  }
+};
 
-  public static updatePermission = async (
-    req: AuthenticatedRequest,
-    res: Response,
-    _next: NextFunction,
-  ): Promise<void> => {
-    const userId = req.user?.id;
-
-    if (!userId) {
-      throw new HttpError(HTTP_STATUS.UNAUTHORIZED, 'User not authenticated');
-    }
-
+export const update = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
+  try {
     const permissionId = PermissionsValidation.validatePermissionId(req.params.id);
     const validatedData = PermissionsValidation.validateUpdatePermission(req.body);
-    const permission = await PermissionsService.updatePermission(permissionId, validatedData);
+    const permission = await updatePermission(permissionId, validatedData);
     ResponseUtil.success(res, { permission }, HTTP_STATUS.OK);
-  };
+  } catch (error) {
+    next(error);
+  }
+};
 
-  public static deletePermission = async (
-    req: AuthenticatedRequest,
-    res: Response,
-    _next: NextFunction,
-  ): Promise<void> => {
-    const userId = req.user?.id;
-
-    if (!userId) {
-      throw new HttpError(HTTP_STATUS.UNAUTHORIZED, 'User not authenticated');
-    }
-
+export const remove = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
+  try {
     const permissionId = PermissionsValidation.validatePermissionId(req.params.id);
-    await PermissionsService.deletePermission(permissionId);
+    await deletePermission(permissionId);
     ResponseUtil.success(res, { message: 'Permission deleted successfully' }, HTTP_STATUS.OK);
-  };
-}
+  } catch (error) {
+    next(error);
+  }
+};

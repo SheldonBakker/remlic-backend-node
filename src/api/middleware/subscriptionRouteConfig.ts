@@ -14,6 +14,6 @@ export const SUBSCRIPTION_ROUTE_CONFIG: Record<string, IRouteSubscriptionConfig>
 };
 
 export const getRouteFeature = (basePath: string): SubscriptionFeature | null => {
-  const config = SUBSCRIPTION_ROUTE_CONFIG[basePath];
+  const config = (SUBSCRIPTION_ROUTE_CONFIG as Record<string, IRouteSubscriptionConfig | undefined>)[basePath];
   return config?.feature ?? null;
 };

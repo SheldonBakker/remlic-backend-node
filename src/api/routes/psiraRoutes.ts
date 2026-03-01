@@ -1,12 +1,14 @@
 import { Router } from 'express';
-import PsiraController from '../controllers/psiraController';
-
-import { requireRole, UserRole } from '../middleware/authMiddleware';
-import { requireRouteSubscription } from '../middleware/subscriptionMiddleware';
+import { list, getApplicant, create, remove } from '../controllers/psiraController.js';
+import { requireRole, UserRole } from '../middleware/authMiddleware.js';
+import { requireRouteSubscription } from '../middleware/subscriptionMiddleware.js';
 
 const requireSubscription = requireRouteSubscription('/psira');
 
 const router = Router();
+
+router.use(requireRole(UserRole.USER));
+router.use(requireSubscription);
 
 /**
  * @swagger
@@ -191,7 +193,7 @@ const router = Router();
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.get('/', requireRole(UserRole.USER), requireSubscription, (PsiraController.getOfficers));
+router.get('/', list);
 
 /**
  * @swagger
@@ -250,7 +252,7 @@ router.get('/', requireRole(UserRole.USER), requireSubscription, (PsiraControlle
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.post('/', requireRole(UserRole.USER), requireSubscription, (PsiraController.createOfficer));
+router.post('/', create);
 
 /**
  * @swagger
@@ -314,7 +316,7 @@ router.post('/', requireRole(UserRole.USER), requireSubscription, (PsiraControll
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.get('/lookup/:idNumber', requireRole(UserRole.USER), requireSubscription, (PsiraController.getApplicantDetails));
+router.get('/lookup/:idNumber', getApplicant);
 
 /**
  * @swagger
@@ -370,6 +372,6 @@ router.get('/lookup/:idNumber', requireRole(UserRole.USER), requireSubscription,
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.delete('/:id', requireRole(UserRole.USER), requireSubscription, (PsiraController.deleteOfficer));
+router.delete('/:id', remove);
 
 export default router;

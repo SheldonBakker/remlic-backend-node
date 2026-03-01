@@ -7,7 +7,7 @@ import { ENTITY_TO_PERMISSION } from '../../shared/constants/entities';
 import { UserRole } from '../../shared/types/auth';
 import Logger from '../../shared/utils/logger';
 import { ResponseUtil } from '../../shared/utils/response';
-import SubscriptionsService from '../../infrastructure/database/subscriptions/subscriptionsMethods';
+import { getUserPermissions as getDbUserPermissions } from '../../infrastructure/database/subscriptions/subscriptionsMethods';
 import { getRouteFeature, type SubscriptionFeature } from './subscriptionRouteConfig';
 
 const CONTEXT = 'SUBSCRIPTION_MIDDLEWARE';
@@ -28,7 +28,7 @@ const getUserPermissions = async (req: AuthenticatedRequest): Promise<IUserPermi
     throw new Error('User not authenticated');
   }
 
-  const permissions = await SubscriptionsService.getUserPermissions(userId);
+  const permissions = await getDbUserPermissions(userId);
   req.user.permissions = permissions;
   return permissions;
 };
@@ -111,7 +111,7 @@ export const requireEntityTypeAccess = () => {
         return;
       }
 
-      const entityType = ((req.params.entityType ?? req.body?.entity_type) as EntityType | undefined) ?? null;
+      const entityType = ((req.params['entityType'] || req.body?.entity_type) as EntityType | undefined) ?? null;
 
       if (!entityType) {
         ResponseUtil.error(res, 'Invalid entity type', HTTP_STATUS.BAD_REQUEST);

@@ -1,7 +1,6 @@
 import { Router } from 'express';
-import PackagesController from '../controllers/packagesController';
-
-import { requireRole, UserRole } from '../middleware/authMiddleware';
+import { list, getBySlug, create, update, remove } from '../controllers/packagesController.js';
+import { requireRole, UserRole } from '../middleware/authMiddleware.js';
 
 const router = Router();
 
@@ -134,6 +133,12 @@ const router = Router();
  *           type: string
  *           enum: [monthly, yearly]
  *         description: Filter by package type
+ *       - in: query
+ *         name: id
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: If provided, return a single package by ID instead of a list
  *     responses:
  *       200:
  *         description: Packages retrieved successfully
@@ -169,7 +174,7 @@ const router = Router();
  *       403:
  *         description: Forbidden - Admin access required
  */
-router.get('/', requireRole(UserRole.ADMIN), (PackagesController.getPackages));
+router.get('/', requireRole(UserRole.ADMIN), list);
 
 /**
  * @swagger
@@ -215,56 +220,7 @@ router.get('/', requireRole(UserRole.ADMIN), (PackagesController.getPackages));
  *       404:
  *         description: Package not found
  */
-router.get('/slug/:slug', requireRole(UserRole.USER, UserRole.ADMIN), (PackagesController.getPackageBySlug));
-
-/**
- * @swagger
- * /packages/{id}:
- *   get:
- *     summary: Get a package by ID (Admin only)
- *     description: Returns a single package by its ID.
- *     tags:
- *       - Packages
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *           format: uuid
- *         description: The package ID
- *     responses:
- *       200:
- *         description: Package retrieved successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: true
- *                 data:
- *                   type: object
- *                   properties:
- *                     package:
- *                       $ref: '#/components/schemas/PackageWithPermission'
- *                 timestamp:
- *                   type: string
- *                   format: date-time
- *                 statusCode:
- *                   type: integer
- *                   example: 200
- *       401:
- *         description: Unauthorized - Invalid or missing token
- *       403:
- *         description: Forbidden - Admin access required
- *       404:
- *         description: Package not found
- */
-router.get('/:id', requireRole(UserRole.ADMIN), (PackagesController.getPackageById));
+router.get('/slug/:slug', requireRole(UserRole.USER, UserRole.ADMIN), getBySlug);
 
 /**
  * @swagger
@@ -313,7 +269,7 @@ router.get('/:id', requireRole(UserRole.ADMIN), (PackagesController.getPackageBy
  *       409:
  *         description: Conflict - Package with this slug already exists
  */
-router.post('/', requireRole(UserRole.ADMIN), (PackagesController.createPackage));
+router.post('/', requireRole(UserRole.ADMIN), create);
 
 /**
  * @swagger
@@ -372,7 +328,7 @@ router.post('/', requireRole(UserRole.ADMIN), (PackagesController.createPackage)
  *       409:
  *         description: Conflict - Package with this slug already exists
  */
-router.patch('/:id', requireRole(UserRole.ADMIN), (PackagesController.updatePackage));
+router.patch('/:id', requireRole(UserRole.ADMIN), update);
 
 /**
  * @swagger
@@ -422,6 +378,6 @@ router.patch('/:id', requireRole(UserRole.ADMIN), (PackagesController.updatePack
  *       404:
  *         description: Package not found
  */
-router.delete('/:id', requireRole(UserRole.ADMIN), (PackagesController.deletePackage));
+router.delete('/:id', requireRole(UserRole.ADMIN), remove);
 
 export default router;

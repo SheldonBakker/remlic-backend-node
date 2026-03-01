@@ -108,7 +108,7 @@ class Logger {
       winstonLogger.error(message, {
         context,
         error: typeof error === 'string' ? error : JSON.stringify(error),
-        ...(typeof error === 'object' && error !== null ? { errorDetails: error } : {}),
+        ...(typeof error === 'object' ? { errorDetails: error } : {}),
       });
     } else {
       winstonLogger.error(message, { context });

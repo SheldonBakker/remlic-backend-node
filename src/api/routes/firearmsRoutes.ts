@@ -1,11 +1,14 @@
 import { Router } from 'express';
-import FirearmsController from '../controllers/firearmsController';
-import { requireRole, UserRole } from '../middleware/authMiddleware';
-import { requireRouteSubscription } from '../middleware/subscriptionMiddleware';
+import { list, create, update, remove } from '../controllers/firearmsController.js';
+import { requireRole, UserRole } from '../middleware/authMiddleware.js';
+import { requireRouteSubscription } from '../middleware/subscriptionMiddleware.js';
 
 const requireSubscription = requireRouteSubscription('/firearms');
 
 const router = Router();
+
+router.use(requireRole(UserRole.USER));
+router.use(requireSubscription);
 
 /**
  * @swagger
@@ -143,6 +146,12 @@ const router = Router();
  *           type: string
  *           enum: [asc, desc]
  *         description: Sort order (ascending or descending)
+ *       - in: query
+ *         name: id
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: If provided, return a single firearm by ID instead of a list
  *     responses:
  *       200:
  *         description: Firearms retrieved successfully
@@ -187,62 +196,7 @@ const router = Router();
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.get('/', requireRole(UserRole.USER), requireSubscription, (FirearmsController.getFirearms));
-
-/**
- * @swagger
- * /firearms/{id}:
- *   get:
- *     summary: Get a specific firearm by ID
- *     description: Returns a single firearm by its ID if it belongs to the authenticated user.
- *     tags:
- *       - Firearms
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *           format: uuid
- *         description: The firearm ID
- *     responses:
- *       200:
- *         description: Firearm retrieved successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: true
- *                 data:
- *                   type: object
- *                   properties:
- *                     firearm:
- *                       $ref: '#/components/schemas/Firearm'
- *                 timestamp:
- *                   type: string
- *                   format: date-time
- *                 statusCode:
- *                   type: integer
- *                   example: 200
- *       401:
- *         description: Unauthorized - Invalid or missing token
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/Error'
- *       404:
- *         description: Firearm not found
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/Error'
- */
-router.get('/:id', requireRole(UserRole.USER), requireSubscription, (FirearmsController.getFirearmById));
+router.get('/', list);
 
 /**
  * @swagger
@@ -295,7 +249,7 @@ router.get('/:id', requireRole(UserRole.USER), requireSubscription, (FirearmsCon
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.post('/', requireRole(UserRole.USER), requireSubscription, (FirearmsController.createFirearm));
+router.post('/', create);
 
 /**
  * @swagger
@@ -362,7 +316,7 @@ router.post('/', requireRole(UserRole.USER), requireSubscription, (FirearmsContr
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.patch('/:id', requireRole(UserRole.USER), requireSubscription, (FirearmsController.updateFirearm));
+router.patch('/:id', update);
 
 /**
  * @swagger
@@ -418,6 +372,6 @@ router.patch('/:id', requireRole(UserRole.USER), requireSubscription, (FirearmsC
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.delete('/:id', requireRole(UserRole.USER), requireSubscription, (FirearmsController.deleteFirearm));
+router.delete('/:id', remove);
 
 export default router;

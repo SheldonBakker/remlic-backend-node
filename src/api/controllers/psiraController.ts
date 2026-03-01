@@ -2,74 +2,56 @@ import type { Response, NextFunction } from 'express';
 import type { AuthenticatedRequest } from '../../shared/types/request';
 import { ResponseUtil } from '../../shared/utils/response';
 import { HTTP_STATUS } from '../../shared/constants/httpStatus';
-import { HttpError } from '../../shared/types/errors/appError';
-import PsiraService from '../../infrastructure/database/psira/psiraMethods';
+import { requireUser } from '../../shared/utils/authHelpers';
+import {
+  getApplicantDetails,
+  getOfficersByUserId,
+  createOfficer,
+  deleteOfficer,
+} from '../../infrastructure/database/psira/psiraMethods';
 import { PsiraValidation } from '../../infrastructure/database/psira/validation';
 import { PaginationUtil } from '../../shared/utils/pagination';
 
-export default class PsiraController {
-  public static getApplicantDetails = async (
-    req: AuthenticatedRequest,
-    res: Response,
-    _next: NextFunction,
-  ): Promise<void> => {
-    const userId = req.user?.id;
-
-    if (!userId) {
-      throw new HttpError(HTTP_STATUS.UNAUTHORIZED, 'User not authenticated');
-    }
-
+export const getApplicant = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
+  try {
     const idNumber = PsiraValidation.validateIdNumber(req.params.idNumber);
-    const officers = await PsiraService.getApplicantDetails(idNumber);
+    const officers = await getApplicantDetails(idNumber);
     ResponseUtil.success(res, { officers }, HTTP_STATUS.OK);
-  };
+  } catch (error) {
+    next(error);
+  }
+};
 
-  public static getOfficers = async (
-    req: AuthenticatedRequest,
-    res: Response,
-    _next: NextFunction,
-  ): Promise<void> => {
-    const userId = req.user?.id;
-
-    if (!userId) {
-      throw new HttpError(HTTP_STATUS.UNAUTHORIZED, 'User not authenticated');
-    }
-
+export const list = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const { id: userId } = requireUser(req);
     const params = PaginationUtil.parseQuery(req.query);
     const filters = PsiraValidation.validateFilters(req.query);
-    const { items, pagination } = await PsiraService.getOfficersByUserId(userId, params, filters);
+    const { items, pagination } = await getOfficersByUserId(userId, params, filters);
     ResponseUtil.success(res, { officers: items }, HTTP_STATUS.OK, pagination);
-  };
+  } catch (error) {
+    next(error);
+  }
+};
 
-  public static createOfficer = async (
-    req: AuthenticatedRequest,
-    res: Response,
-    _next: NextFunction,
-  ): Promise<void> => {
-    const userId = req.user?.id;
-
-    if (!userId) {
-      throw new HttpError(HTTP_STATUS.UNAUTHORIZED, 'User not authenticated');
-    }
-
+export const create = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const { id: userId } = requireUser(req);
     const validatedData = PsiraValidation.validateCreateOfficer(req.body);
-    const officer = await PsiraService.createOfficer(validatedData, userId);
+    const officer = await createOfficer(validatedData, userId);
     ResponseUtil.success(res, { officer }, HTTP_STATUS.CREATED);
-  };
+  } catch (error) {
+    next(error);
+  }
+};
 
-  public static deleteOfficer = async (
-    req: AuthenticatedRequest,
-    res: Response,
-    _next: NextFunction,
-  ): Promise<void> => {
-    const userId = req.user?.id;
-
-    if (!userId) {
-      throw new HttpError(HTTP_STATUS.UNAUTHORIZED, 'User not authenticated');
-    }
-
+export const remove = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const { id: userId } = requireUser(req);
     const officerId = PsiraValidation.validateOfficerId(req.params.id);
-    await PsiraService.deleteOfficer(officerId, userId);
+    await deleteOfficer(officerId, userId);
     ResponseUtil.success(res, { message: 'Officer deleted successfully' }, HTTP_STATUS.OK);
-  };
-}
+  } catch (error) {
+    next(error);
+  }
+};

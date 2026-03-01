@@ -12,6 +12,7 @@ export function decryptAndParseDriverLicense(rawData: Uint8Array): ISADriversLic
   return parseLicense(decryptResult.data, decryptResult.version);
 }
 
+// eslint-disable-next-line complexity
 function decryptLicense(rawData: Uint8Array): IDecryptResult {
   let startOffset = -1;
   let version: number | null = null;
@@ -57,6 +58,7 @@ function decryptLicense(rawData: Uint8Array): IDecryptResult {
   return { data: result, version };
 }
 
+// eslint-disable-next-line complexity
 function parseLicense(decryptedData: Uint8Array, version: number): ISADriversLicense {
   if (decryptedData.length < 100) {
     throw new DecryptionError('Decrypted data too small');
@@ -239,6 +241,7 @@ function parseStrings(bytes: Uint8Array): string[] {
   return result;
 }
 
+// eslint-disable-next-line complexity
 function findPayloadStart(bytes: Uint8Array): number {
   for (let i = 0; i < 40 && i + 4 < bytes.length; i++) {
     if (

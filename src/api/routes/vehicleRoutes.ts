@@ -1,12 +1,14 @@
 import { Router } from 'express';
-import VehicleController from '../controllers/vehicleController';
-
-import { requireRole, UserRole } from '../middleware/authMiddleware';
-import { requireRouteSubscription } from '../middleware/subscriptionMiddleware';
+import { list, create, update, remove } from '../controllers/vehicleController.js';
+import { requireRole, UserRole } from '../middleware/authMiddleware.js';
+import { requireRouteSubscription } from '../middleware/subscriptionMiddleware.js';
 
 const requireSubscription = requireRouteSubscription('/vehicle');
 
 const router = Router();
+
+router.use(requireRole(UserRole.USER));
+router.use(requireSubscription);
 
 /**
  * @swagger
@@ -153,6 +155,12 @@ const router = Router();
  *           enum: [asc, desc]
  *           default: desc
  *         description: Sort order (ascending or descending)
+ *       - in: query
+ *         name: id
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: If provided, return a single vehicle by ID instead of a list
  *     responses:
  *       200:
  *         description: Vehicles retrieved successfully
@@ -197,62 +205,7 @@ const router = Router();
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.get('/', requireRole(UserRole.USER), requireSubscription, (VehicleController.getVehicles));
-
-/**
- * @swagger
- * /vehicle/{id}:
- *   get:
- *     summary: Get a specific vehicle by ID
- *     description: Returns a single vehicle by its ID if it belongs to the authenticated user.
- *     tags:
- *       - Vehicle
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *           format: uuid
- *         description: The vehicle ID
- *     responses:
- *       200:
- *         description: Vehicle retrieved successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: true
- *                 data:
- *                   type: object
- *                   properties:
- *                     vehicle:
- *                       $ref: '#/components/schemas/Vehicle'
- *                 timestamp:
- *                   type: string
- *                   format: date-time
- *                 statusCode:
- *                   type: integer
- *                   example: 200
- *       401:
- *         description: Unauthorized - Invalid or missing token
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/Error'
- *       404:
- *         description: Vehicle not found
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/Error'
- */
-router.get('/:id', requireRole(UserRole.USER), requireSubscription, (VehicleController.getVehicleById));
+router.get('/', list);
 
 /**
  * @swagger
@@ -311,7 +264,7 @@ router.get('/:id', requireRole(UserRole.USER), requireSubscription, (VehicleCont
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.post('/', requireRole(UserRole.USER), requireSubscription, (VehicleController.createVehicle));
+router.post('/', create);
 
 /**
  * @swagger
@@ -378,7 +331,7 @@ router.post('/', requireRole(UserRole.USER), requireSubscription, (VehicleContro
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.patch('/:id', requireRole(UserRole.USER), requireSubscription, (VehicleController.updateVehicle));
+router.patch('/:id', update);
 
 /**
  * @swagger
@@ -434,6 +387,6 @@ router.patch('/:id', requireRole(UserRole.USER), requireSubscription, (VehicleCo
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.delete('/:id', requireRole(UserRole.USER), requireSubscription, (VehicleController.deleteVehicle));
+router.delete('/:id', remove);
 
 export default router;
