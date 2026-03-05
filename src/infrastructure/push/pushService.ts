@@ -5,18 +5,6 @@ const ONESIGNAL_API_URL = 'https://onesignal.com/api/v1/notifications';
 const ONESIGNAL_BATCH_LIMIT = 2000;
 const CONTEXT = 'PUSH_SERVICE';
 
-export interface IPushPayload {
-  playerIds: string[];
-  title: string;
-  body: string;
-  data?: Record<string, string>;
-}
-
-export interface IPushResult {
-  success: boolean;
-  error?: string;
-}
-
 export class PushService {
   static async send(payload: IPushPayload): Promise<IPushResult> {
     const { appId, restApiKey } = config.onesignal;
@@ -57,4 +45,16 @@ export class PushService {
       return { success: false, error: message };
     }
   }
+}
+
+export interface IPushPayload {
+  playerIds: string[];
+  title: string;
+  body: string;
+  data?: Record<string, string>;
+}
+
+export interface IPushResult {
+  success: boolean;
+  error?: string;
 }

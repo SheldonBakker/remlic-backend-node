@@ -16,7 +16,6 @@ import { HttpError } from '../../../shared/types/errors/appError.js';
 import { HTTP_STATUS } from '../../../shared/constants/httpStatus.js';
 import Logger from '../../../shared/utils/logger.js';
 import { FreeTrialService } from '../../../useCase/freeTrialService.js';
-import { createDefaultSettings } from '../reminders/remindersMethods.js';
 
 const CONTEXT = 'AUTH_SERVICE';
 
@@ -69,7 +68,6 @@ export async function signup(data: ISignupRequest): Promise<ISignupResponse> {
     throw new HttpError(HTTP_STATUS.INTERNAL_SERVER_ERROR, 'User created but profile creation failed');
   }
 
-  await createDefaultSettings(authData.user.id);
   await FreeTrialService.grantFreeTrial(authData.user.id);
 
   return {

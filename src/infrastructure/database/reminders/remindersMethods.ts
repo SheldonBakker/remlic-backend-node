@@ -16,9 +16,6 @@ import Logger from '../../../shared/utils/logger';
 
 const CONTEXT = 'REMINDERS_SERVICE';
 
-const DEFAULT_ENTITY_TYPES: EntityType[] = ['firearms', 'vehicles', 'certificates', 'psira_officers'];
-const DEFAULT_REMINDER_DAYS = [7, 30];
-
 type EntityTable = typeof firearms | typeof vehicles | typeof certificates | typeof psiraOfficers | typeof driverLicences;
 
 const ENTITY_DRIZZLE_TABLE_MAP: Record<EntityType, EntityTable> = {
@@ -29,30 +26,11 @@ const ENTITY_DRIZZLE_TABLE_MAP: Record<EntityType, EntityTable> = {
   driver_licences: driverLicences,
 };
 
-export async function createDefaultSettings(userId: string): Promise<void> {
-  await db
-    .insert(reminderSettings)
-    .values(
-      DEFAULT_ENTITY_TYPES.map((entity_type) => ({
-        profile_id: userId,
-        entity_type,
-        reminder_days: DEFAULT_REMINDER_DAYS,
-        is_enabled: true,
-      })),
-    )
-    .onConflictDoNothing();
-}
-
 export async function getAllSettings(userId: string): Promise<IReminderSettingsResponse> {
   const data = await db
     .select()
     .from(reminderSettings)
     .where(eq(reminderSettings.profile_id, userId));
-
-  if (data.length === 0) {
-    await createDefaultSettings(userId);
-    return getAllSettings(userId);
-  }
 
   const response: IReminderSettingsResponse = {
     firearms: null,
@@ -205,6 +183,8 @@ function getItemName(entityType: EntityType, item: Record<string, unknown>): str
       return `${item.type} - ${item.first_name} ${item.last_name}`;
     case 'psira_officers':
       return `${item.first_name} ${item.last_name}`;
+    case 'driver_licences':
+      return `${item.initials} ${item.surname}`;
     default:
       return 'Unknown';
   }
@@ -220,6 +200,8 @@ function getItemDetails(entityType: EntityType, item: Record<string, unknown>): 
       return { type: item.type, first_name: item.first_name, last_name: item.last_name, certificate_number: item.certificate_number };
     case 'psira_officers':
       return { first_name: item.first_name, last_name: item.last_name, sira_no: item.sira_no, id_number: item.id_number };
+    case 'driver_licences':
+      return { surname: item.surname, initials: item.initials, id_number: item.id_number, licence_number: item.licence_number };
     default:
       return {};
   }
