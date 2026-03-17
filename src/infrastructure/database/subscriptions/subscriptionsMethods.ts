@@ -24,6 +24,52 @@ interface JoinedSubscriptionRow {
   app_permissions: typeof appPermissions.$inferSelect;
 }
 
+const VALID_SUBSCRIPTION_STATUSES = ['active', 'cancelled'] as const;
+const ACTIVE_SUBSCRIPTION_STATUSES = ['active'] as const;
+
+function getTodayDateString(): string {
+  return new Date().toISOString().split('T')[0] ?? '';
+}
+
+function buildCurrentSubscriptionConditions(params: {
+  statuses: readonly ISubscription['status'][];
+  profileId?: string;
+  profileIds?: string[];
+}): SQL {
+  const today = getTodayDateString();
+  const conditions: SQL[] = [
+    inArray(appSubscriptions.status, [...params.statuses]),
+    lte(appSubscriptions.start_date, today),
+    gte(appSubscriptions.end_date, today),
+  ];
+
+  if (params.profileId) {
+    conditions.push(eq(appSubscriptions.profile_id, params.profileId));
+  }
+
+  if (params.profileIds) {
+    conditions.push(inArray(appSubscriptions.profile_id, params.profileIds));
+  }
+
+  return and(...conditions) as SQL;
+}
+
+async function getProfileIdsBySubscriptionStatuses(
+  profileIds: string[],
+  statuses: readonly ISubscription['status'][],
+): Promise<Set<string>> {
+  if (profileIds.length === 0) {
+    return new Set();
+  }
+
+  const data = await db
+    .select({ profile_id: appSubscriptions.profile_id })
+    .from(appSubscriptions)
+    .where(buildCurrentSubscriptionConditions({ profileIds, statuses }));
+
+  return new Set(data.map((subscription) => subscription.profile_id));
+}
+
 export async function getSubscriptions(
   params: ICursorParams,
   filters: ISubscriptionsFilters = {},
@@ -117,19 +163,12 @@ export async function getUserSubscriptions(
 }
 
 export async function getUserPermissions(userId: string): Promise<IUserPermissions> {
-  const today = new Date().toISOString().split('T')[0] ?? '';
-
   const results = await db
     .select()
     .from(appSubscriptions)
     .innerJoin(appPackages, eq(appSubscriptions.package_id, appPackages.id))
     .innerJoin(appPermissions, eq(appPackages.permission_id, appPermissions.id))
-    .where(and(
-      eq(appSubscriptions.profile_id, userId),
-      inArray(appSubscriptions.status, ['active', 'cancelled']),
-      lte(appSubscriptions.start_date, today),
-      gte(appSubscriptions.end_date, today),
-    ));
+    .where(buildCurrentSubscriptionConditions({ profileId: userId, statuses: VALID_SUBSCRIPTION_STATUSES }));
 
   const subscriptions = results.map((row) => mapToSubWithPkg(row));
 
@@ -374,19 +413,12 @@ export async function markRefunded(subscriptionId: string): Promise<ISubscriptio
 }
 
 export async function getUserActiveSubscription(userId: string): Promise<ISubscriptionWithPackage | null> {
-  const today = new Date().toISOString().split('T')[0] ?? '';
-
   const result = await db
     .select()
     .from(appSubscriptions)
     .innerJoin(appPackages, eq(appSubscriptions.package_id, appPackages.id))
     .innerJoin(appPermissions, eq(appPackages.permission_id, appPermissions.id))
-    .where(and(
-      eq(appSubscriptions.profile_id, userId),
-      inArray(appSubscriptions.status, ['active', 'cancelled']),
-      lte(appSubscriptions.start_date, today),
-      gte(appSubscriptions.end_date, today),
-    ))
+    .where(buildCurrentSubscriptionConditions({ profileId: userId, statuses: VALID_SUBSCRIPTION_STATUSES }))
     .orderBy(desc(appSubscriptions.created_at))
     .limit(1)
     .then((rows) => rows.at(0));
@@ -399,23 +431,11 @@ export async function getUserActiveSubscription(userId: string): Promise<ISubscr
 }
 
 export async function getProfileIdsWithValidSubscription(profileIds: string[]): Promise<Set<string>> {
-  if (profileIds.length === 0) {
-    return new Set();
-  }
+  return getProfileIdsBySubscriptionStatuses(profileIds, VALID_SUBSCRIPTION_STATUSES);
+}
 
-  const today = new Date().toISOString().split('T')[0] ?? '';
-
-  const data = await db
-    .select({ profile_id: appSubscriptions.profile_id })
-    .from(appSubscriptions)
-    .where(and(
-      inArray(appSubscriptions.profile_id, profileIds),
-      inArray(appSubscriptions.status, ['active', 'cancelled']),
-      lte(appSubscriptions.start_date, today),
-      gte(appSubscriptions.end_date, today),
-    ));
-
-  return new Set(data.map((s) => s.profile_id));
+export async function getProfileIdsWithActiveSubscription(profileIds: string[]): Promise<Set<string>> {
+  return getProfileIdsBySubscriptionStatuses(profileIds, ACTIVE_SUBSCRIPTION_STATUSES);
 }
 
 export async function getExpiredActiveSubscriptions(): Promise<Pick<ISubscription, 'id'>[]> {

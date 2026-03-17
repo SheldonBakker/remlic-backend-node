@@ -23,7 +23,7 @@ router.use(requireRole(UserRole.USER));
  *           example: "123e4567-e89b-12d3-a456-426614174000"
  *         entity_type:
  *           type: string
- *           enum: [firearms, vehicles, certificates, psira_officers]
+ *           enum: [firearms, vehicles, certificates, psira_officers, driver_licences]
  *           example: "firearms"
  *         reminder_days:
  *           type: array
@@ -56,6 +56,9 @@ router.use(requireRole(UserRole.USER));
  *         psira_officers:
  *           $ref: '#/components/schemas/ReminderSetting'
  *           nullable: true
+ *         driver_licences:
+ *           $ref: '#/components/schemas/ReminderSetting'
+ *           nullable: true
  *     UpdateReminderSettingRequest:
  *       type: object
  *       minProperties: 1
@@ -80,7 +83,7 @@ router.use(requireRole(UserRole.USER));
  *         settings:
  *           type: array
  *           minItems: 1
- *           maxItems: 4
+ *           maxItems: 5
  *           items:
  *             type: object
  *             required:
@@ -90,7 +93,7 @@ router.use(requireRole(UserRole.USER));
  *             properties:
  *               entity_type:
  *                 type: string
- *                 enum: [firearms, vehicles, certificates, psira_officers]
+ *                 enum: [firearms, vehicles, certificates, psira_officers, driver_licences]
  *               reminder_days:
  *                 type: array
  *                 items:
@@ -108,7 +111,7 @@ router.use(requireRole(UserRole.USER));
  * /settings/reminders:
  *   get:
  *     summary: Get all reminder settings for the authenticated user
- *     description: Returns reminder settings for all entity types (firearms, vehicles, certificates, psira_officers).
+ *     description: Returns reminder settings for all entity types (firearms, vehicles, certificates, psira_officers, driver_licences).
  *     tags:
  *       - Reminder Settings
  *     security:
@@ -202,7 +205,7 @@ router.put('/', bulkUpdate);
  * /settings/reminders/{entityType}:
  *   patch:
  *     summary: Update a single reminder setting
- *     description: Updates the reminder setting for a specific entity type. At least one field must be provided.
+ *     description: Updates the reminder setting for a specific entity type. At least one field must be provided. If the setting does not already exist, `reminder_days` must be included.
  *     tags:
  *       - Reminder Settings
  *     security:
@@ -213,7 +216,7 @@ router.put('/', bulkUpdate);
  *         required: true
  *         schema:
  *           type: string
- *           enum: [firearms, vehicles, certificates, psira_officers]
+ *           enum: [firearms, vehicles, certificates, psira_officers, driver_licences]
  *         description: The entity type to update settings for
  *     requestBody:
  *       required: true
@@ -274,7 +277,7 @@ router.patch('/:entityType', update);
  *         required: true
  *         schema:
  *           type: string
- *           enum: [firearms, vehicles, certificates, psira_officers]
+ *           enum: [firearms, vehicles, certificates, psira_officers, driver_licences]
  *         description: The entity type to delete settings for
  *     responses:
  *       200:

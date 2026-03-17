@@ -4,15 +4,92 @@ import { CronService } from '../cronService.js';
 import Logger from '../../shared/utils/logger.js';
 import { getExpiringRemindersBatch } from '../../infrastructure/database/reminders/remindersMethods.js';
 import { getPlayerIdsByProfileIds } from '../../infrastructure/database/device_tokens/deviceTokenMethods.js';
-import { getProfileIdsWithValidSubscription } from '../../infrastructure/database/subscriptions/subscriptionsMethods.js';
+import { getProfileIdsWithActiveSubscription } from '../../infrastructure/database/subscriptions/subscriptionsMethods.js';
 import { PushService } from '../../infrastructure/push/pushService.js';
+import type { IBatchReminderItem, IBatchReminderResult } from '../../infrastructure/database/reminders/types.js';
 
 const JOB_NAME = 'push-reminders';
 const SCHEDULE = '0 8 * * *';
 const TIMEZONE = 'Africa/Johannesburg';
 const BATCH_SIZE = 1000;
 
-async function run(): Promise<IJobResult> {
+interface IPushReminderJobDependencies {
+  getExpiringRemindersBatch: (limit?: number, cursorId?: string | null)=> Promise<IBatchReminderResult>;
+  getPlayerIdsByProfileIds: (profileIds: string[])=> Promise<Map<string, string[]>>;
+  getProfileIdsWithActiveSubscription: (profileIds: string[])=> Promise<Set<string>>;
+  sendPush: typeof PushService.send;
+}
+
+const defaultDependencies: IPushReminderJobDependencies = {
+  getExpiringRemindersBatch,
+  getPlayerIdsByProfileIds,
+  getProfileIdsWithActiveSubscription,
+  sendPush: PushService.send.bind(PushService),
+};
+
+async function sendReminderPush(
+  item: IBatchReminderItem,
+  playerIdsMap: Map<string, string[]>,
+  sendPush: IPushReminderJobDependencies['sendPush'],
+): Promise<IJobError | null> {
+  const playerIds = playerIdsMap.get(item.profileId);
+  if (!playerIds || playerIds.length === 0) {
+    return null;
+  }
+
+  const result = await sendPush({
+    playerIds,
+    title: 'Expiry Reminder',
+    body: `${item.itemName} expires in ${item.daysUntilExpiry} day(s)`,
+    data: {
+      entityType: item.entityType,
+      entityId: item.entityId,
+      expiryDate: item.expiryDate,
+    },
+  });
+
+  if (result.success) {
+    return null;
+  }
+
+  return { recordId: item.entityId, message: result.error ?? 'Push send failed' };
+}
+
+async function processBatch(
+  items: IBatchReminderItem[],
+  dependencies: IPushReminderJobDependencies,
+): Promise<Pick<IJobResult, 'recordsProcessed' | 'recordsUpdated' | 'errors'>> {
+  const profileIds = [...new Set(items.map((item) => item.profileId))];
+  const playerIdsMap = await dependencies.getPlayerIdsByProfileIds(profileIds);
+  const validProfileIds = await dependencies.getProfileIdsWithActiveSubscription(profileIds);
+  const errors: IJobError[] = [];
+  let pushSent = 0;
+
+  for (const item of items) {
+    if (!validProfileIds.has(item.profileId)) {
+      continue;
+    }
+
+    const error = await sendReminderPush(item, playerIdsMap, dependencies.sendPush);
+    if (!error) {
+      pushSent++;
+      continue;
+    }
+
+    errors.push(error);
+    Logger.error(JOB_NAME, `Failed to send push for ${item.entityId}: ${error.message}`);
+  }
+
+  return {
+    recordsProcessed: items.length,
+    recordsUpdated: pushSent,
+    errors,
+  };
+}
+
+export async function run(
+  dependencies: IPushReminderJobDependencies = defaultDependencies,
+): Promise<IJobResult> {
   const startTime = new Date();
   const errors: IJobError[] = [];
   let recordsProcessed = 0;
@@ -23,44 +100,16 @@ async function run(): Promise<IJobResult> {
     let hasMore = true;
 
     while (hasMore) {
-      const { items, nextCursor } = await getExpiringRemindersBatch(BATCH_SIZE, cursor);
+      const { items, nextCursor } = await dependencies.getExpiringRemindersBatch(BATCH_SIZE, cursor);
 
       if (items.length === 0) {
         break;
       }
 
-      const profileIds = [...new Set(items.map((item) => item.profileId))];
-      const playerIdsMap = await getPlayerIdsByProfileIds(profileIds);
-      const validProfileIds = await getProfileIdsWithValidSubscription(profileIds);
-
-      for (const item of items) {
-        recordsProcessed++;
-        if (!validProfileIds.has(item.profileId)) {
-          continue;
-        }
-        const playerIds = playerIdsMap.get(item.profileId);
-        if (!playerIds || playerIds.length === 0) {
-          continue;
-        }
-
-        const result = await PushService.send({
-          playerIds,
-          title: 'Expiry Reminder',
-          body: `${item.itemName} expires in ${item.daysUntilExpiry} day(s)`,
-          data: {
-            entityType: item.entityType,
-            entityId: item.entityId,
-            expiryDate: item.expiryDate,
-          },
-        });
-
-        if (result.success) {
-          pushSent++;
-        } else {
-          errors.push({ recordId: item.entityId, message: result.error ?? 'Push send failed' });
-          Logger.error(JOB_NAME, `Failed to send push for ${item.entityId}: ${result.error}`);
-        }
-      }
+      const batchResult = await processBatch(items, dependencies);
+      recordsProcessed += batchResult.recordsProcessed;
+      pushSent += batchResult.recordsUpdated;
+      errors.push(...batchResult.errors);
 
       hasMore = nextCursor !== null;
       cursor = nextCursor;

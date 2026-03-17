@@ -1,7 +1,7 @@
 import type { EntityType } from '../../infrastructure/database/reminders/types';
 import type { SubscriptionFeature } from '../../api/middleware/subscriptionRouteConfig';
 
-export const ENTITY_TYPES: EntityType[] = ['firearms', 'vehicles', 'certificates', 'psira_officers', 'driver_licences'];
+export const ENTITY_TYPES = ['firearms', 'vehicles', 'certificates', 'psira_officers', 'driver_licences'] as const satisfies readonly EntityType[];
 
 export const ENTITY_TABLE_MAP: Record<EntityType, string> = {
   firearms: 'firearms',

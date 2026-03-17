@@ -4,8 +4,10 @@ import { HttpError } from '../../../shared/types/errors/appError';
 import { HTTP_STATUS } from '../../../shared/constants/httpStatus';
 import { withAtLeastOneField } from '../../../shared/schemas/common';
 import { validateOrThrow } from '../../../shared/utils/validationHelper';
+import { ENTITY_TYPES } from '../../../shared/constants/entities';
 
-const entityTypeSchema = z.enum(['firearms', 'vehicles', 'certificates', 'psira_officers']);
+const entityTypeSchema = z.enum(ENTITY_TYPES);
+const entityTypeMessage = ENTITY_TYPES.join(', ');
 
 const reminderDaysSchema = z.array(z.number().int().min(1).max(365))
   .min(1, 'At least one reminder day is required')
@@ -28,7 +30,7 @@ const bulkSettingSchema = z.object({
 const bulkUpdateSchema = z.object({
   settings: z.array(bulkSettingSchema)
     .min(1, 'At least one setting is required')
-    .max(4, 'Maximum 4 settings allowed')
+    .max(5, 'Maximum 5 settings allowed')
     .refine((settings) => {
       const entityTypes = settings.map((s) => s.entity_type);
       return new Set(entityTypes).size === entityTypes.length;
@@ -43,7 +45,7 @@ export class RemindersValidation {
     if (!result.success) {
       throw new HttpError(
         HTTP_STATUS.BAD_REQUEST,
-        'Invalid entity type. Must be one of: firearms, vehicles, certificates, psira_officers',
+        `Invalid entity type. Must be one of: ${entityTypeMessage}`,
       );
     }
     return result.data;

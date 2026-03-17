@@ -2,6 +2,7 @@ import type {
   IReminderSetting,
   IReminderSettingsResponse,
   IUpsertReminderSettingData,
+  IUpdateReminderSettingRequest,
   EntityType,
   IExpiringItem,
   IBatchReminderItem,
@@ -13,6 +14,7 @@ import { eq, and, inArray, sql } from 'drizzle-orm';
 import { HttpError } from '../../../shared/types/errors/appError';
 import { HTTP_STATUS } from '../../../shared/constants/httpStatus';
 import Logger from '../../../shared/utils/logger';
+import { ENTITY_TYPES } from '../../../shared/constants/entities';
 
 const CONTEXT = 'REMINDERS_SERVICE';
 
@@ -26,29 +28,11 @@ const ENTITY_DRIZZLE_TABLE_MAP: Record<EntityType, EntityTable> = {
   driver_licences: driverLicences,
 };
 
-export async function getAllSettings(userId: string): Promise<IReminderSettingsResponse> {
-  const data = await db
-    .select()
-    .from(reminderSettings)
-    .where(eq(reminderSettings.profile_id, userId));
-
-  const response: IReminderSettingsResponse = {
-    firearms: null,
-    vehicles: null,
-    certificates: null,
-    psira_officers: null,
-    driver_licences: null,
-  };
-
-  for (const row of data) {
-    const setting = mapToSetting(row);
-    response[setting.entity_type] = setting;
-  }
-
-  return response;
+function createEmptyReminderSettingsResponse(): IReminderSettingsResponse {
+  return Object.fromEntries(ENTITY_TYPES.map((entityType) => [entityType, null])) as unknown as IReminderSettingsResponse;
 }
 
-export async function upsertSetting(data: IUpsertReminderSettingData): Promise<IReminderSetting> {
+async function saveSetting(data: IUpsertReminderSettingData): Promise<IReminderSetting> {
   const setting = await db
     .insert(reminderSettings)
     .values({
@@ -75,30 +59,80 @@ export async function upsertSetting(data: IUpsertReminderSettingData): Promise<I
   return mapToSetting(setting);
 }
 
+export async function getAllSettings(userId: string): Promise<IReminderSettingsResponse> {
+  const data = await db
+    .select()
+    .from(reminderSettings)
+    .where(eq(reminderSettings.profile_id, userId));
+
+  const response = createEmptyReminderSettingsResponse();
+
+  for (const row of data) {
+    const setting = mapToSetting(row);
+    response[setting.entity_type] = setting;
+  }
+
+  return response;
+}
+
+async function getSetting(userId: string, entityType: EntityType): Promise<IReminderSetting | null> {
+  const setting = await db
+    .select()
+    .from(reminderSettings)
+    .where(and(
+      eq(reminderSettings.profile_id, userId),
+      eq(reminderSettings.entity_type, entityType),
+    ))
+    .limit(1)
+    .then((rows) => rows.at(0));
+
+  return setting ? mapToSetting(setting) : null;
+}
+
+export function buildReminderSettingUpsertData(params: {
+  userId: string;
+  entityType: EntityType;
+  existingSetting: IReminderSetting | null;
+  update: IUpdateReminderSettingRequest;
+}): IUpsertReminderSettingData {
+  const { userId, entityType, existingSetting, update } = params;
+
+  if (!existingSetting && !update.reminder_days) {
+    throw new HttpError(HTTP_STATUS.BAD_REQUEST, 'reminder_days is required when creating a new reminder setting');
+  }
+
+  return {
+    profile_id: userId,
+    entity_type: entityType,
+    reminder_days: update.reminder_days ?? existingSetting?.reminder_days ?? [],
+    is_enabled: update.is_enabled ?? existingSetting?.is_enabled ?? true,
+  };
+}
+
+export async function upsertSetting(
+  userId: string,
+  entityType: EntityType,
+  update: IUpdateReminderSettingRequest,
+): Promise<IReminderSetting> {
+  const existingSetting = await getSetting(userId, entityType);
+  return saveSetting(buildReminderSettingUpsertData({
+    userId,
+    entityType,
+    existingSetting,
+    update,
+  }));
+}
+
 export async function bulkUpsertSettings(
   userId: string,
   settings: Array<{ entity_type: EntityType; reminder_days: number[]; is_enabled: boolean }>,
 ): Promise<IReminderSettingsResponse> {
-  const upsertData = settings.map((setting) => ({
+  await Promise.all(settings.map(async (setting) => saveSetting({
     profile_id: userId,
     entity_type: setting.entity_type,
     reminder_days: setting.reminder_days,
     is_enabled: setting.is_enabled,
-  }));
-
-  await Promise.all(upsertData.map((item) =>
-    db
-      .insert(reminderSettings)
-      .values(item)
-      .onConflictDoUpdate({
-        target: [reminderSettings.profile_id, reminderSettings.entity_type],
-        set: {
-          reminder_days: item.reminder_days,
-          is_enabled: item.is_enabled,
-          updated_at: new Date(),
-        },
-      }),
-  ));
+  })));
 
   return getAllSettings(userId);
 }

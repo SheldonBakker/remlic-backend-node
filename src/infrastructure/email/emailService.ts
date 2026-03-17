@@ -10,6 +10,7 @@ const ENTITY_TYPE_LABELS: Record<string, string> = {
   vehicles: 'Vehicle License',
   certificates: 'Certificate',
   psira_officers: 'PSIRA Registration',
+  driver_licences: 'Driver Licence',
 };
 
 interface IKlaviyoEventPayload {

@@ -26,12 +26,7 @@ export const update = async (req: AuthenticatedRequest, res: Response, next: Nex
     const { id: userId } = requireUser(req);
     const entityType = RemindersValidation.validateEntityType(req.params.entityType);
     const validatedData = RemindersValidation.validateUpdateReminderSetting(req.body);
-    const setting = await upsertSetting({
-      profile_id: userId,
-      entity_type: entityType,
-      reminder_days: validatedData.reminder_days ?? [],
-      is_enabled: validatedData.is_enabled ?? true,
-    });
+    const setting = await upsertSetting(userId, entityType, validatedData);
     ResponseUtil.success(res, { setting }, HTTP_STATUS.OK);
   } catch (error) {
     next(error);
