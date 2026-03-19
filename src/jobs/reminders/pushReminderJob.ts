@@ -62,11 +62,27 @@ async function processBatch(
   const profileIds = [...new Set(items.map((item) => item.profileId))];
   const playerIdsMap = await dependencies.getPlayerIdsByProfileIds(profileIds);
   const validProfileIds = await dependencies.getProfileIdsWithActiveSubscription(profileIds);
+
+  const profilesWithTokens = profileIds.filter((id) => {
+    const ids = playerIdsMap.get(id);
+    return ids !== undefined && ids.length > 0;
+  }).length;
+
+  Logger.info(JOB_NAME, `Batch: ${items.length} items, ${profileIds.length} unique profiles, ${profilesWithTokens} with device tokens, ${validProfileIds.size} with active subscriptions`);
+
   const errors: IJobError[] = [];
   let pushSent = 0;
+  let skipped = 0;
 
   for (const item of items) {
     if (!validProfileIds.has(item.profileId)) {
+      skipped++;
+      continue;
+    }
+
+    const playerIds = playerIdsMap.get(item.profileId);
+    if (!playerIds || playerIds.length === 0) {
+      skipped++;
       continue;
     }
 
@@ -79,6 +95,8 @@ async function processBatch(
     errors.push(error);
     Logger.error(JOB_NAME, `Failed to send push for ${item.entityId}: ${error.message}`);
   }
+
+  Logger.info(JOB_NAME, `Batch result: ${pushSent} sent, ${skipped} skipped, ${errors.length} errors`);
 
   return {
     recordsProcessed: items.length,
@@ -103,6 +121,7 @@ export async function run(
       const { items, nextCursor } = await dependencies.getExpiringRemindersBatch(BATCH_SIZE, cursor);
 
       if (items.length === 0) {
+        Logger.info(JOB_NAME, 'No expiring reminders found');
         break;
       }
 
@@ -144,8 +163,13 @@ export function registerPushReminderJob(): void {
     name: JOB_NAME,
     schedule: SCHEDULE,
     timezone: TIMEZONE,
+    runImmediately: true,
     handler: async () => {
-      await run();
+      const result = await run();
+      Logger.info(JOB_NAME, `Job completed: ${result.recordsProcessed} processed, ${result.recordsUpdated} sent, ${result.errors.length} errors, success=${result.success}`);
+      if (result.errors.length > 0) {
+        Logger.error(JOB_NAME, `Errors: ${JSON.stringify(result.errors)}`);
+      }
     },
   });
 }
