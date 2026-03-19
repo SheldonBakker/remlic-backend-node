@@ -10,7 +10,7 @@ import type {
 } from './types';
 import db from '../databaseClient';
 import { reminderSettings, firearms, vehicles, certificates, psiraOfficers, driverLicences } from '../schema/index';
-import { eq, and, inArray, sql } from 'drizzle-orm';
+import { eq, and, gte, lte, sql } from 'drizzle-orm';
 import { HttpError } from '../../../shared/types/errors/appError';
 import { HTTP_STATUS } from '../../../shared/constants/httpStatus';
 import Logger from '../../../shared/utils/logger';
@@ -163,28 +163,45 @@ export async function getAllEnabledSettings(): Promise<IReminderSetting[]> {
   return data.map((row) => mapToSetting(row));
 }
 
+export function getReminderWindowStartDays(reminderDays: number[]): number {
+  return Math.max(...reminderDays);
+}
+
+export function isWithinDailyReminderWindow(daysUntilExpiry: number, reminderDays: number[]): boolean {
+  if (reminderDays.length === 0) {
+    return false;
+  }
+
+  const reminderWindowStartDays = getReminderWindowStartDays(reminderDays);
+  return daysUntilExpiry >= 0 && daysUntilExpiry <= reminderWindowStartDays;
+}
+
 export async function getExpiringItems(
   entityType: EntityType,
   profileId: string,
   reminderDays: number[],
 ): Promise<IExpiringItem[]> {
   try {
+    if (reminderDays.length === 0) {
+      return [];
+    }
+
     const table = ENTITY_DRIZZLE_TABLE_MAP[entityType];
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-
-    const targetDates = reminderDays.map((days) => {
-      const date = new Date(today);
-      date.setDate(date.getDate() + days);
-      return date.toISOString().split('T')[0] ?? '';
-    });
+    const reminderWindowStartDays = getReminderWindowStartDays(reminderDays);
+    const lastReminderDate = new Date(today);
+    lastReminderDate.setDate(lastReminderDate.getDate() + reminderWindowStartDays);
+    const todayStr = today.toISOString().split('T')[0] ?? '';
+    const lastReminderDateStr = lastReminderDate.toISOString().split('T')[0] ?? '';
 
     const data = await db
       .select()
       .from(table)
       .where(and(
         eq(table.profile_id, profileId),
-        inArray(table.expiry_date, targetDates),
+        gte(table.expiry_date, todayStr),
+        lte(table.expiry_date, lastReminderDateStr),
       ));
 
     return (data as Record<string, unknown>[]).map((item) => {

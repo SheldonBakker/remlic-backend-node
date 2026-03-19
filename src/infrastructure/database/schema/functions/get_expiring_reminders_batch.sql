@@ -17,15 +17,15 @@ LANGUAGE plpgsql
 AS $function$
 BEGIN
   RETURN QUERY
-  WITH target_dates AS (
-    SELECT DISTINCT
+  WITH setting_windows AS (
+    SELECT
       rs.profile_id,
       rs.entity_type,
-      d.reminder_day,
-      (CURRENT_DATE + d.reminder_day)::date AS target_date
+      MAX(d.reminder_day)::int AS reminder_window_days
     FROM reminder_settings rs
     CROSS JOIN LATERAL unnest(rs.reminder_days) AS d(reminder_day)
     WHERE rs.is_enabled = true
+    GROUP BY rs.profile_id, rs.entity_type
   ),
   active_profiles AS (
     SELECT DISTINCT asub.profile_id
@@ -42,8 +42,10 @@ BEGIN
                               'caliber', f.caliber, 'serial_number', f.serial_number) AS details
     FROM firearms f
     JOIN profiles p ON f.profile_id = p.id
-    JOIN target_dates td ON f.profile_id = td.profile_id
-      AND td.entity_type = 'firearms' AND f.expiry_date = td.target_date
+    JOIN setting_windows sw ON f.profile_id = sw.profile_id
+      AND sw.entity_type = 'firearms'
+      AND f.expiry_date >= CURRENT_DATE
+      AND f.expiry_date <= (CURRENT_DATE + sw.reminder_window_days)
     JOIN active_profiles ap ON f.profile_id = ap.profile_id
 
     UNION ALL
@@ -55,8 +57,10 @@ BEGIN
                               'registration_number', v.registration_number)
     FROM vehicles v
     JOIN profiles p ON v.profile_id = p.id
-    JOIN target_dates td ON v.profile_id = td.profile_id
-      AND td.entity_type = 'vehicles' AND v.expiry_date = td.target_date
+    JOIN setting_windows sw ON v.profile_id = sw.profile_id
+      AND sw.entity_type = 'vehicles'
+      AND v.expiry_date >= CURRENT_DATE
+      AND v.expiry_date <= (CURRENT_DATE + sw.reminder_window_days)
     JOIN active_profiles ap ON v.profile_id = ap.profile_id
 
     UNION ALL
@@ -68,8 +72,10 @@ BEGIN
                               'last_name', c.last_name, 'certificate_number', c.certificate_number)
     FROM certificates c
     JOIN profiles p ON c.profile_id = p.id
-    JOIN target_dates td ON c.profile_id = td.profile_id
-      AND td.entity_type = 'certificates' AND c.expiry_date = td.target_date
+    JOIN setting_windows sw ON c.profile_id = sw.profile_id
+      AND sw.entity_type = 'certificates'
+      AND c.expiry_date >= CURRENT_DATE
+      AND c.expiry_date <= (CURRENT_DATE + sw.reminder_window_days)
     JOIN active_profiles ap ON c.profile_id = ap.profile_id
 
     UNION ALL
@@ -81,8 +87,10 @@ BEGIN
                               'sira_no', po.sira_no, 'id_number', po.id_number)
     FROM psira_officers po
     JOIN profiles p ON po.profile_id = p.id
-    JOIN target_dates td ON po.profile_id = td.profile_id
-      AND td.entity_type = 'psira_officers' AND po.expiry_date::date = td.target_date
+    JOIN setting_windows sw ON po.profile_id = sw.profile_id
+      AND sw.entity_type = 'psira_officers'
+      AND po.expiry_date::date >= CURRENT_DATE
+      AND po.expiry_date::date <= (CURRENT_DATE + sw.reminder_window_days)
     JOIN active_profiles ap ON po.profile_id = ap.profile_id
 
     UNION ALL
@@ -94,8 +102,10 @@ BEGIN
                               'id_number', dl.id_number, 'licence_number', dl.licence_number)
     FROM driver_licences dl
     JOIN profiles p ON dl.profile_id = p.id
-    JOIN target_dates td ON dl.profile_id = td.profile_id
-      AND td.entity_type = 'driver_licences' AND dl.expiry_date = td.target_date
+    JOIN setting_windows sw ON dl.profile_id = sw.profile_id
+      AND sw.entity_type = 'driver_licences'
+      AND dl.expiry_date >= CURRENT_DATE
+      AND dl.expiry_date <= (CURRENT_DATE + sw.reminder_window_days)
     JOIN active_profiles ap ON dl.profile_id = ap.profile_id
   )
   SELECT ei.id, ei.profile_id, ei.email, ei.etype, ei.entity_id,

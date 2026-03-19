@@ -54,6 +54,27 @@ void test('buildReminderSettingUpsertData requires reminder_days when creating a
   });
 });
 
+void test('daily reminder window starts from the earliest configured threshold and includes expiry day', async () => {
+  setTestEnv();
+  const { getReminderWindowStartDays, isWithinDailyReminderWindow } = await import('./remindersMethods.js');
+
+  assert.equal(getReminderWindowStartDays([30, 7]), 30);
+  assert.equal(isWithinDailyReminderWindow(30, [30, 7]), true);
+  assert.equal(isWithinDailyReminderWindow(14, [30, 7]), true);
+  assert.equal(isWithinDailyReminderWindow(7, [30, 7]), true);
+  assert.equal(isWithinDailyReminderWindow(1, [30, 7]), true);
+  assert.equal(isWithinDailyReminderWindow(0, [30, 7]), true);
+});
+
+void test('daily reminder window excludes items outside the configured range or already expired', async () => {
+  setTestEnv();
+  const { isWithinDailyReminderWindow } = await import('./remindersMethods.js');
+
+  assert.equal(isWithinDailyReminderWindow(31, [30, 7]), false);
+  assert.equal(isWithinDailyReminderWindow(-1, [30, 7]), false);
+  assert.equal(isWithinDailyReminderWindow(3, []), false);
+});
+
 void test('RemindersValidation accepts driver_licences and five bulk settings', async () => {
   const { RemindersValidation } = await import('./validation.js');
 
