@@ -1,0 +1,46 @@
+x-backend-environment: &backend-environment
+  NODE_ENV: production
+  PORT: 8181
+  API_VERSION: ${API_VERSION:-v1}
+  LOG_LEVEL: ${LOG_LEVEL:-info}
+  CORS_ORIGINS: ${CORS_ORIGINS:-}
+  SUPABASE_URL: ${SUPABASE_URL:-}
+  SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY:-}
+  SUPABASE_JWT_SECRET: ${SUPABASE_JWT_SECRET:-}
+  DATABASE_URL: ${DATABASE_URL:-}
+  DATABASE_MAX_CONNECTIONS: ${DATABASE_MAX_CONNECTIONS:-10}
+  DATABASE_IDLE_TIMEOUT: ${DATABASE_IDLE_TIMEOUT:-20}
+  DATABASE_CONNECT_TIMEOUT: ${DATABASE_CONNECT_TIMEOUT:-10}
+  KLAVIYO_PRIVATE_API_KEY: ${KLAVIYO_PRIVATE_API_KEY:-}
+  KLAVIYO_API_REVISION: ${KLAVIYO_API_REVISION:-2024-10-15}
+  SUPPORT_EMAIL: ${SUPPORT_EMAIL:-support@firearmstudio.com}
+  PAYSTACK_SECRET: ${PAYSTACK_SECRET:-}
+  ONESIGNAL_APP_ID: ${ONESIGNAL_APP_ID:-}
+  ONESIGNAL_REST_API_KEY: ${ONESIGNAL_REST_API_KEY:-}
+  RSA_V1_PK_128: ${RSA_V1_PK_128:-}
+  RSA_V1_PK_74: ${RSA_V1_PK_74:-}
+  RSA_V2_PK_128: ${RSA_V2_PK_128:-}
+  RSA_V2_PK_74: ${RSA_V2_PK_74:-}
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: ["node", "dist/server.js"]
+    restart: unless-stopped
+    ports:
+      - "8181:8181"
+    environment: *backend-environment
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "const port=process.env.PORT||'8181'; const version=process.env.API_VERSION||'v1'; fetch('http://127.0.0.1:' + port + '/api/' + version + '/health').then((res)=>process.exit(res.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s

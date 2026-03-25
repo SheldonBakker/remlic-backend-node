@@ -10,6 +10,27 @@ Express v5 + TypeScript backend for the Remlic firearms license management syste
 2. Configure environment: `cp .env.example .env` and add credentials
 3. Start development server: `npm run dev` (runs on http://localhost:8080)
 
+## Portainer Deployment
+
+This repository now includes a `docker-compose.yml` for Portainer or a standard Docker Compose deployment. The stack runs two services from the same image:
+
+- `backend`: serves the HTTP API on `http://192.168.1.38:8181`
+- `worker`: runs the scheduled background jobs independently of API traffic
+
+1. Create a new Portainer stack from this repository.
+2. Use the included `docker-compose.yml`.
+3. In the Portainer stack environment UI, provide the required secrets and runtime values:
+   `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_JWT_SECRET`, `DATABASE_URL`,
+   `RSA_V1_PK_128`, `RSA_V1_PK_74`, `RSA_V2_PK_128`, `RSA_V2_PK_74`,
+   plus any optional values such as `CORS_ORIGINS`, `KLAVIYO_PRIVATE_API_KEY`,
+   `ONESIGNAL_APP_ID`, and `ONESIGNAL_REST_API_KEY`.
+4. Deploy the stack. The backend will be exposed on `http://192.168.1.38:8181`.
+
+After deployment, verify:
+- Health check: `http://192.168.1.38:8181/api/v1/health`
+- Swagger UI: `http://192.168.1.38:8181/api/docs`
+- Worker logs show the cron jobs registering on startup
+
 ## API Documentation
 
 Comprehensive API documentation is available in [docs/API.md](docs/API.md).

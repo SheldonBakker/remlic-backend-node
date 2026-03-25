@@ -11,11 +11,11 @@ import { errorHandler } from './api/middleware/errorHandler';
 import { requestMiddleware } from './api/middleware/logger';
 import Logger from './shared/utils/logger';
 import routes from './api/routes/index';
-import { CronService } from './jobs/cronService';
-import { registerPsiraUpdateJob } from './jobs/psira/psiraUpdateJob';
-import { registerReminderJob } from './jobs/reminders/reminderJob';
-import { registerPushReminderJob } from './jobs/reminders/pushReminderJob';
-import { registerSubscriptionExpiryJob } from './jobs/subscriptions/subscriptionExpiryJob';
+import { CronService } from './jobs/cronService.js';
+import { registerPsiraUpdateJob } from './jobs/psira/psiraUpdateJob.js';
+import { registerReminderJob } from './jobs/reminders/reminderJob.js';
+import { registerPushReminderJob } from './jobs/reminders/pushReminderJob.js';
+import { registerSubscriptionExpiryJob } from './jobs/subscriptions/subscriptionExpiryJob.js';
 
 const app = express();
 
@@ -87,13 +87,16 @@ app.listen(port, () => {
   Logger.info('Server', `Server running on port ${port}`);
   Logger.info('Server', `API Docs: http://localhost:${port}/api/docs`);
   Logger.info('Server', `Environment: ${config.app.nodeEnv}`);
+
   registerPsiraUpdateJob();
   registerReminderJob();
   registerPushReminderJob();
   registerSubscriptionExpiryJob();
+  Logger.info('Server', 'Background jobs registered');
 });
 
 process.on('SIGTERM', () => {
+  Logger.info('Server', 'SIGTERM received, stopping background jobs');
   CronService.stopAll();
   process.exit(0);
 });

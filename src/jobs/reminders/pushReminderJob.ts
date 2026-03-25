@@ -163,7 +163,7 @@ export function registerPushReminderJob(): void {
     name: JOB_NAME,
     schedule: SCHEDULE,
     timezone: TIMEZONE,
-    runImmediately: true,
+    runImmediately: false,
     handler: async () => {
       const result = await run();
       Logger.info(JOB_NAME, `Job completed: ${result.recordsProcessed} processed, ${result.recordsUpdated} sent, ${result.errors.length} errors, success=${result.success}`);

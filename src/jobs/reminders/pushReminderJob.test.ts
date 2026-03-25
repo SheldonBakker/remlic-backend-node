@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { IBatchReminderResult } from '../../infrastructure/database/reminders/types.js';
+import type { ICronJobOptions } from '../cronService.js';
 
 function setTestEnv(): void {
   process.env.SUPABASE_URL ??= 'https://example.supabase.co';
@@ -154,4 +155,38 @@ void test('run sends a push on the expiry date', async () => {
       expiryDate: '2026-04-16',
     },
   });
+});
+
+void test('registerPushReminderJob registers the expected cron contract without startup run', async () => {
+  setTestEnv();
+  const { CronService } = await import('../cronService.js');
+  const { registerPushReminderJob } = await import('./pushReminderJob.js');
+
+  const originalRegisterDescriptor = Object.getOwnPropertyDescriptor(CronService, 'register');
+  const registeredJobs: ICronJobOptions[] = [];
+
+  Object.defineProperty(CronService, 'register', {
+    configurable: true,
+    value: (options: ICronJobOptions): void => {
+      registeredJobs.push(options);
+    },
+  });
+
+  try {
+    registerPushReminderJob();
+  } finally {
+    if (originalRegisterDescriptor) {
+      Object.defineProperty(CronService, 'register', originalRegisterDescriptor);
+    }
+  }
+
+  assert.equal(registeredJobs.length, 1);
+
+  const registeredJob = registeredJobs[0];
+
+  assert.equal(registeredJob.name, 'push-reminders');
+  assert.equal(registeredJob.schedule, '0 8 * * *');
+  assert.equal(registeredJob.timezone, 'Africa/Johannesburg');
+  assert.equal(registeredJob.runImmediately, false);
+  assert.equal(typeof registeredJob.handler, 'function');
 });
