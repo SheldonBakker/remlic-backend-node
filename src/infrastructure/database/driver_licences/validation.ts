@@ -36,7 +36,7 @@ const genderSchema = z
   .default(null);
 
 const decodedDataSchema = z
-  .record(z.unknown())
+  .record(z.string(), z.unknown())
   .nullable()
   .default(null);
 
@@ -64,7 +64,7 @@ const updateDriverLicenceSchema = z
     issue_date: dateSchema.optional(),
     date_of_birth: dateSchema.optional(),
     gender: z.string().max(10, 'Gender must be at most 10 characters').optional(),
-    decoded_data: z.record(z.unknown()).optional(),
+    decoded_data: z.record(z.string(), z.unknown()).optional(),
   })
   .refine((data) => Object.keys(data).length > 0, {
     message: 'At least one field must be provided for update',

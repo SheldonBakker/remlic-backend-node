@@ -13,7 +13,7 @@ export class ContactValidation {
   public static validateContactForm(data: unknown): IContactForm {
     const result = contactFormSchema.safeParse(data);
     if (!result.success) {
-      const errorMessage = result.error.errors.map((e) => e.message).join(', ');
+      const errorMessage = result.error.issues.map((e) => e.message).join(', ');
       throw new HttpError(HTTP_STATUS.BAD_REQUEST, errorMessage);
     }
     return result.data;

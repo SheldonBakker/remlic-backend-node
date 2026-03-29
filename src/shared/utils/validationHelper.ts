@@ -3,11 +3,11 @@ import { HttpError } from '../types/errors/appError';
 import { HTTP_STATUS } from '../constants/httpStatus';
 import { formatValidationError } from './validationFormatter';
 
-export function validateOrThrow<T extends z.ZodType<unknown, z.ZodTypeDef, unknown>>(
-  schema: T,
+export function validateOrThrow<O>(
+  schema: z.ZodType<O>,
   data: unknown,
   errorMessage = 'Validation failed',
-): z.output<T> {
+): O {
   const result = schema.safeParse(data);
   if (!result.success) {
     const errors = formatValidationError(result.error);
@@ -17,7 +17,7 @@ export function validateOrThrow<T extends z.ZodType<unknown, z.ZodTypeDef, unkno
       errors,
     );
   }
-  return result.data as z.output<T>;
+  return result.data;
 }
 
 export function validateIdOrThrow(

@@ -18,11 +18,11 @@ export const errorHandler = (
     const errorResponse = {
       success: false,
       error: {
-        message: error.errors[0]?.message ?? 'Validation error',
+        message: error.issues[0]?.message ?? 'Validation error',
         statusCode,
         timestamp: new Date().toISOString(),
         path: req.path,
-        details: error.errors,
+        details: error.issues,
       },
     };
     res.status(statusCode).json(errorResponse);
