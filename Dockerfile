@@ -1,24 +1,25 @@
-FROM node:latest AS development
+FROM node:24-alpine AS builder
 
-WORKDIR /usr/src/app
+WORKDIR /app
 
 COPY package*.json ./
-
-RUN npm install --legacy-peer-deps
+RUN npm ci --legacy-peer-deps
 
 COPY . .
-
 RUN npm run build
 
-FROM node:latest AS production
+FROM node:24-alpine AS production
 
-WORKDIR /usr/src/app
+WORKDIR /app
 
 COPY package*.json ./
+RUN npm ci --omit=dev --legacy-peer-deps \
+  && npm cache clean --force
 
-RUN npm install --only=production
+COPY --from=builder /app/dist ./dist
 
-COPY --from=development /usr/src/app/dist ./dist
+USER node
+
 EXPOSE 8181
 
-CMD [ "node", "dist/server.js" ]
+CMD ["node", "dist/server.js"]
