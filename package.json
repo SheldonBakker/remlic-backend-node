@@ -18,39 +18,50 @@
     "@google-cloud/logging-winston": "^6.0.1",
     "@supabase/supabase-js": "^2.89.0",
     "compression": "^1.8.1",
-    "cors": "^2.8.5",
-    "dotenv": "^17.2.3",
-    "drizzle-orm": "^0.45.1",
-    "express": "^5.0.1",
-    "express-rate-limit": "^8.2.1",
+    "cors": "^2.8.6",
+    "dotenv": "^17.3.1",
+    "drizzle-orm": "^0.45.2",
+    "express": "^5.2.1",
+    "express-rate-limit": "^8.3.1",
     "helmet": "^8.1.0",
-    "jose": "^6.1.3",
+    "jose": "^6.2.2",
     "node-cron": "^4.2.1",
     "postgres": "^3.4.8",
     "swagger-jsdoc": "^6.2.8",
     "swagger-ui-express": "^5.0.1",
     "winston": "^3.19.0",
-    "zod": "^3.24.1"
+    "zod": "^4.3.6"
   },
   "devDependencies": {
     "@stylistic/eslint-plugin": "^2.12.1",
     "@types/compression": "^1.8.1",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
-    "@types/node": "^22.10.2",
+    "@types/node": "^24.0.0",
     "@types/node-cron": "^3.0.11",
     "@types/swagger-jsdoc": "^6.0.4",
     "@types/swagger-ui-express": "^4.1.8",
     "@typescript-eslint/eslint-plugin": "^8.18.2",
     "@typescript-eslint/parser": "^8.18.2",
-    "drizzle-kit": "^0.31.9",
+    "drizzle-kit": "^0.18.1",
     "eslint": "^9.17.0",
     "eslint-plugin-security-node": "^1.1.4",
-    "tsx": "^4.19.2",
+    "tsx": "^4.21.0",
     "typescript": "^5.7.2",
     "typescript-eslint": "^8.50.1"
   },
   "engines": {
-    "node": ">=20.0.0"
+    "node": "24.x"
+  },
+  "devEngines": {
+    "runtime": {
+      "name": "node",
+      "version": "24.x",
+      "onFail": "error"
+    },
+    "packageManager": {
+      "name": "npm",
+      "onFail": "error"
+    }
   }
 }
