@@ -1,38 +1,24 @@
-# Build stage
-FROM node:24-slim AS build
+FROM node:latest AS development
 
 WORKDIR /usr/src/app
 
 COPY package*.json ./
 
-RUN npm ci
+RUN npm install --legacy-peer-deps
 
 COPY . .
 
 RUN npm run build
 
-# Production stage
-FROM node:24-slim AS production
+FROM node:latest AS production
 
 WORKDIR /usr/src/app
 
-# Create non-root user for security
-RUN groupadd -r nodejs && useradd -r -g nodejs nodejs
-
 COPY package*.json ./
 
-RUN npm ci --omit=dev && npm cache clean --force
+RUN npm install --only=production
 
-COPY --from=build /usr/src/app/dist ./dist
-
-# Change ownership to non-root user
-RUN chown -R nodejs:nodejs /usr/src/app
-
-USER nodejs
-
-# Default container port; override PORT at runtime if needed
-ENV PORT=8181
+COPY --from=development /usr/src/app/dist ./dist
 EXPOSE 8181
 
-# Use exec form for proper signal handling
-CMD ["node", "dist/server.js"]
+CMD [ "node", "dist/server.js" ]

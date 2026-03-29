@@ -49,19 +49,5 @@
     "tsx": "^4.21.0",
     "typescript": "^5.7.2",
     "typescript-eslint": "^8.50.1"
-  },
-  "engines": {
-    "node": "24.x"
-  },
-  "devEngines": {
-    "runtime": {
-      "name": "node",
-      "version": "24.x",
-      "onFail": "error"
-    },
-    "packageManager": {
-      "name": "npm",
-      "onFail": "error"
-    }
   }
 }
