@@ -1,8 +1,6 @@
 import { existsSync, mkdirSync, unlinkSync } from 'node:fs';
 import path from 'node:path';
-import type { Request } from 'express';
 import winston from 'winston';
-import { LoggingWinston } from '@google-cloud/logging-winston';
 
 const isDev = process.env.NODE_ENV !== 'production';
 const logDir = path.resolve('logs');
@@ -17,19 +15,10 @@ if (isDev) {
   }
 }
 
-const isGCP =
-  process.env.GOOGLE_CLOUD_PROJECT ??
-  process.env.GAE_ENV;
-
-const Transport = isGCP
-  ? new LoggingWinston({ logName: 'winston_logs' })
-  : null;
-
 const winstonLogger = winston.createLogger({
   level: process.env.NODE_ENV === 'production' ? 'info' : 'debug',
   format: winston.format.json(),
   transports: [
-    ...(Transport ? [Transport] : []),
     ...(isDev ? [new winston.transports.File({
       filename: logFile,
       format: winston.format.combine(
@@ -62,18 +51,6 @@ export function latencyBucket(ms: number): string {
     return '300ms-1s';
   }
   return '>1s';
-}
-
-export function getTraceMeta(req: Request): Record<string, string> {
-  const traceHeader = req.header('x-cloud-trace-context');
-  if (!traceHeader) {
-    return {};
-  }
-
-  const [trace] = traceHeader.split('/');
-  return {
-    'logging.googleapis.com/trace': `projects/${process.env.GOOGLE_CLOUD_PROJECT}/traces/${trace}`,
-  };
 }
 
 export function log(

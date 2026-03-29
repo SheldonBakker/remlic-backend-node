@@ -1,7 +1,7 @@
 import { randomUUID } from 'crypto';
 import type { Response, NextFunction } from 'express';
 import type { AuthenticatedRequest } from '../../shared/types/request';
-import { log, latencyBucket, getTraceMeta } from '../../shared/utils/logger';
+import { log, latencyBucket } from '../../shared/utils/logger';
 
 const SKIP_PATHS = ['/health', '/api/docs'];
 
@@ -27,7 +27,6 @@ export function requestMiddleware(
     const durationMs = Number(process.hrtime.bigint() - start) / 1e6;
 
     log('info', 'http_request', {
-      ...getTraceMeta(req),
       requestId: req.requestId,
       route: req.route?.path ?? req.path,
       latencyBucket: latencyBucket(durationMs),

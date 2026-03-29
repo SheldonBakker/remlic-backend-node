@@ -15,8 +15,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@google-cloud/logging-winston": "^6.0.1",
-    "@supabase/supabase-js": "^2.89.0",
+    "@supabase/supabase-js": "^2.100.1",
     "compression": "^1.8.1",
     "cors": "^2.8.6",
     "dotenv": "^17.3.1",
