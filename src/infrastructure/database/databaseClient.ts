@@ -23,5 +23,4 @@ const db = drizzle(client, {
   logger: config.app.nodeEnv !== 'production' ? drizzleLogger : false,
 });
 
-export { client };
 export default db;

@@ -7,7 +7,7 @@ export class DecryptionError extends Error {
   }
 }
 
-export function bytesToBigInt(bytes: Uint8Array): bigint {
+function bytesToBigInt(bytes: Uint8Array): bigint {
   let result = 0n;
   for (const byte of bytes) {
     result = (result << 8n) | BigInt(byte);
@@ -15,7 +15,7 @@ export function bytesToBigInt(bytes: Uint8Array): bigint {
   return result;
 }
 
-export function bigIntToBytes(value: bigint, length: number): Uint8Array {
+function bigIntToBytes(value: bigint, length: number): Uint8Array {
   const hex = value.toString(16).padStart(length * 2, '0');
   const out = new Uint8Array(length);
   for (let i = 0; i < length; i++) {
@@ -24,7 +24,7 @@ export function bigIntToBytes(value: bigint, length: number): Uint8Array {
   return out;
 }
 
-export function modPow(base: bigint, exp: bigint, mod: bigint): bigint {
+function modPow(base: bigint, exp: bigint, mod: bigint): bigint {
   let result = 1n;
   base = base % mod;
   while (exp > 0n) {
@@ -37,7 +37,7 @@ export function modPow(base: bigint, exp: bigint, mod: bigint): bigint {
   return result;
 }
 
-export function decryptBlock(blockBytes: Uint8Array, key: IRSAPublicKey, outputSize: number): Uint8Array {
+function decryptBlock(blockBytes: Uint8Array, key: IRSAPublicKey, outputSize: number): Uint8Array {
   const input = bytesToBigInt(blockBytes);
   const decrypted = modPow(input, key.e, key.n);
   return bigIntToBytes(decrypted, outputSize);

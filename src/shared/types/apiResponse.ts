@@ -28,8 +28,3 @@ export interface IErrorResponse {
     details?: unknown;
   };
 }
-
-export interface IPageResult<T> {
-  data: T[];
-  nextCursor: IPagination['nextCursor'];
-}

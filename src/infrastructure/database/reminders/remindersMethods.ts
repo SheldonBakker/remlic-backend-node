@@ -4,29 +4,18 @@ import type {
   IUpsertReminderSettingData,
   IUpdateReminderSettingRequest,
   EntityType,
-  IExpiringItem,
   IBatchReminderItem,
   IBatchReminderResult,
 } from './types';
 import db from '../databaseClient';
-import { reminderSettings, firearms, vehicles, certificates, psiraOfficers, driverLicences } from '../schema/index';
-import { eq, and, gte, lte, sql } from 'drizzle-orm';
+import { reminderSettings } from '../schema/index';
+import { eq, and, sql } from 'drizzle-orm';
 import { HttpError } from '../../../shared/types/errors/appError';
 import { HTTP_STATUS } from '../../../shared/constants/httpStatus';
 import Logger from '../../../shared/utils/logger';
 import { ENTITY_TYPES } from '../../../shared/constants/entities';
 
 const CONTEXT = 'REMINDERS_SERVICE';
-
-type EntityTable = typeof firearms | typeof vehicles | typeof certificates | typeof psiraOfficers | typeof driverLicences;
-
-const ENTITY_DRIZZLE_TABLE_MAP: Record<EntityType, EntityTable> = {
-  firearms,
-  vehicles,
-  certificates,
-  psira_officers: psiraOfficers,
-  driver_licences: driverLicences,
-};
 
 function createEmptyReminderSettingsResponse(): IReminderSettingsResponse {
   return Object.fromEntries(ENTITY_TYPES.map((entityType) => [entityType, null])) as unknown as IReminderSettingsResponse;
@@ -154,15 +143,6 @@ export async function deleteSetting(userId: string, entityType: EntityType): Pro
     .where(and(eq(reminderSettings.profile_id, userId), eq(reminderSettings.entity_type, entityType)));
 }
 
-export async function getAllEnabledSettings(): Promise<IReminderSetting[]> {
-  const data = await db
-    .select()
-    .from(reminderSettings)
-    .where(eq(reminderSettings.is_enabled, true));
-
-  return data.map((row) => mapToSetting(row));
-}
-
 export function getReminderWindowStartDays(reminderDays: number[]): number {
   return Math.max(...reminderDays);
 }
@@ -174,88 +154,6 @@ export function isWithinDailyReminderWindow(daysUntilExpiry: number, reminderDay
 
   const reminderWindowStartDays = getReminderWindowStartDays(reminderDays);
   return daysUntilExpiry >= 0 && daysUntilExpiry <= reminderWindowStartDays;
-}
-
-export async function getExpiringItems(
-  entityType: EntityType,
-  profileId: string,
-  reminderDays: number[],
-): Promise<IExpiringItem[]> {
-  try {
-    if (reminderDays.length === 0) {
-      return [];
-    }
-
-    const table = ENTITY_DRIZZLE_TABLE_MAP[entityType];
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const reminderWindowStartDays = getReminderWindowStartDays(reminderDays);
-    const lastReminderDate = new Date(today);
-    lastReminderDate.setDate(lastReminderDate.getDate() + reminderWindowStartDays);
-    const todayStr = today.toISOString().split('T')[0] ?? '';
-    const lastReminderDateStr = lastReminderDate.toISOString().split('T')[0] ?? '';
-
-    const data = await db
-      .select()
-      .from(table)
-      .where(and(
-        eq(table.profile_id, profileId),
-        gte(table.expiry_date, todayStr),
-        lte(table.expiry_date, lastReminderDateStr),
-      ));
-
-    return (data as Record<string, unknown>[]).map((item) => {
-      const expiryDate = new Date(item.expiry_date as string);
-      expiryDate.setHours(0, 0, 0, 0);
-      const daysUntilExpiry = Math.round((expiryDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-
-      return {
-        id: item.id as string,
-        entityType,
-        expiryDate: item.expiry_date as string,
-        daysUntilExpiry,
-        name: getItemName(entityType, item),
-        details: getItemDetails(entityType, item),
-      };
-    });
-  } catch (error) {
-    Logger.error(CONTEXT, `Failed to fetch expiring ${entityType}`, error);
-    return [];
-  }
-}
-
-function getItemName(entityType: EntityType, item: Record<string, unknown>): string {
-  switch (entityType) {
-    case 'firearms':
-      return `${item.make} ${item.model}`;
-    case 'vehicles':
-      return `${item.make} ${item.model} (${item.registration_number})`;
-    case 'certificates':
-      return `${item.type} - ${item.first_name} ${item.last_name}`;
-    case 'psira_officers':
-      return `${item.first_name} ${item.last_name}`;
-    case 'driver_licences':
-      return `${item.initials} ${item.surname}`;
-    default:
-      return 'Unknown';
-  }
-}
-
-function getItemDetails(entityType: EntityType, item: Record<string, unknown>): Record<string, unknown> {
-  switch (entityType) {
-    case 'firearms':
-      return { type: item.type, make: item.make, model: item.model, caliber: item.caliber, serial_number: item.serial_number };
-    case 'vehicles':
-      return { make: item.make, model: item.model, year: item.year, registration_number: item.registration_number };
-    case 'certificates':
-      return { type: item.type, first_name: item.first_name, last_name: item.last_name, certificate_number: item.certificate_number };
-    case 'psira_officers':
-      return { first_name: item.first_name, last_name: item.last_name, sira_no: item.sira_no, id_number: item.id_number };
-    case 'driver_licences':
-      return { surname: item.surname, initials: item.initials, id_number: item.id_number, licence_number: item.licence_number };
-    default:
-      return {};
-  }
 }
 
 export async function getExpiringRemindersBatch(

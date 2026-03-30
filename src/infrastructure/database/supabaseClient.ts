@@ -3,7 +3,7 @@ import { config } from '../config/env.config';
 
 let supabaseAuthClient: SupabaseClient | null = null;
 
-export const getSupabaseAuthClient = (): SupabaseClient => {
+const getSupabaseAuthClient = (): SupabaseClient => {
   supabaseAuthClient ??= createClient(
     config.supabase.url,
     config.supabase.serviceRoleKey,

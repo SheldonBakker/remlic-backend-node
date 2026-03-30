@@ -38,15 +38,6 @@ export interface IUpsertReminderSettingData {
   is_enabled: boolean;
 }
 
-export interface IExpiringItem {
-  id: string;
-  entityType: EntityType;
-  expiryDate: string;
-  daysUntilExpiry: number;
-  name: string;
-  details: Record<string, unknown>;
-}
-
 export interface IBatchReminderItem {
   id: string;
   profileId: string;

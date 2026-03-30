@@ -16,7 +16,7 @@ export async function storeWebhookEvent(
   data: ICreateWebhookEventRequest,
 ): Promise<IStoreWebhookResult> {
   try {
-    const webhook = await db
+    const row = await db
       .insert(webhookEvents)
       .values({
         provider: data.provider,
@@ -29,12 +29,26 @@ export async function storeWebhookEvent(
       .returning()
       .then((rows) => rows.at(0));
 
-    if (!webhook) {
+    if (!row) {
       throw new HttpError(HTTP_STATUS.INTERNAL_SERVER_ERROR, 'Failed to store webhook event');
     }
 
     return {
-      webhook: mapToWebhookEvent(webhook),
+      webhook: {
+        id: row.id,
+        provider: row.provider as IWebhookEvent['provider'],
+        event_type: row.event_type,
+        idempotency_key: row.idempotency_key,
+        payload: row.payload,
+        signature: row.signature,
+        status: row.status as IWebhookEvent['status'],
+        error_message: row.error_message,
+        retry_count: row.retry_count,
+        max_retries: row.max_retries,
+        processed_at: row.processed_at !== null ? row.processed_at.toISOString() : null,
+        created_at: row.created_at.toISOString(),
+        updated_at: row.updated_at.toISOString(),
+      },
       isDuplicate: false,
     };
   } catch (error) {
@@ -42,8 +56,9 @@ export async function storeWebhookEvent(
       throw error;
     }
     const cause = (error as Record<string, unknown>).cause as Record<string, unknown> | undefined;
-    if (cause?.code === '23505' || (error as Record<string, unknown>).code === '23505') {
-      const existingWebhook = await db
+    const code = cause !== undefined ? cause['code'] : (error as Record<string, unknown>)['code'];
+    if (code === '23505') {
+      const existing = await db
         .select()
         .from(webhookEvents)
         .where(
@@ -54,13 +69,27 @@ export async function storeWebhookEvent(
         )
         .then((rows) => rows.at(0));
 
-      if (!existingWebhook) {
+      if (!existing) {
         Logger.error(CONTEXT, `Failed to fetch existing duplicate webhook (idempotency_key: ${data.idempotency_key})`);
         throw new HttpError(HTTP_STATUS.INTERNAL_SERVER_ERROR, 'Failed to store webhook event');
       }
 
       return {
-        webhook: mapToWebhookEvent(existingWebhook),
+        webhook: {
+          id: existing.id,
+          provider: existing.provider as IWebhookEvent['provider'],
+          event_type: existing.event_type,
+          idempotency_key: existing.idempotency_key,
+          payload: existing.payload,
+          signature: existing.signature,
+          status: existing.status as IWebhookEvent['status'],
+          error_message: existing.error_message,
+          retry_count: existing.retry_count,
+          max_retries: existing.max_retries,
+          processed_at: existing.processed_at !== null ? existing.processed_at.toISOString() : null,
+          created_at: existing.created_at.toISOString(),
+          updated_at: existing.updated_at.toISOString(),
+        },
         isDuplicate: true,
       };
     }
@@ -116,36 +145,4 @@ export async function markFailed(webhookId: string, errorMessage: string): Promi
     .where(eq(webhookEvents.id, webhookId));
 
   Logger.warn(CONTEXT, `Webhook marked as failed: ${webhookId} (retry ${newRetryCount}, error: ${errorMessage})`);
-}
-
-export async function getById(webhookId: string): Promise<IWebhookEvent | null> {
-  const data = await db
-    .select()
-    .from(webhookEvents)
-    .where(eq(webhookEvents.id, webhookId))
-    .then((rows) => rows.at(0));
-
-  if (!data) {
-    return null;
-  }
-
-  return mapToWebhookEvent(data);
-}
-
-function mapToWebhookEvent(row: typeof webhookEvents.$inferSelect): IWebhookEvent {
-  return {
-    id: row.id,
-    provider: row.provider as IWebhookEvent['provider'],
-    event_type: row.event_type,
-    idempotency_key: row.idempotency_key,
-    payload: row.payload,
-    signature: row.signature,
-    status: row.status as IWebhookEvent['status'],
-    error_message: row.error_message,
-    retry_count: row.retry_count,
-    max_retries: row.max_retries,
-    processed_at: row.processed_at?.toISOString() ?? null,
-    created_at: row.created_at.toISOString(),
-    updated_at: row.updated_at.toISOString(),
-  };
 }

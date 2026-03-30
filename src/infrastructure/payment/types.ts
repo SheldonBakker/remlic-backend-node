@@ -141,15 +141,6 @@ export interface IPaystackResult<T = unknown> {
   error?: string;
 }
 
-export interface IActivateSubscriptionData {
-  profile_id: string;
-  package_id: string;
-  paystack_subscription_code: string;
-  paystack_customer_code: string;
-  paystack_email_token: string;
-  current_period_end: string;
-}
-
 export interface IPaystackRefundRequest {
   transaction: string;
   amount?: number;
