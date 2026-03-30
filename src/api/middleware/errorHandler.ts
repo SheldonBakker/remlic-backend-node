@@ -43,6 +43,7 @@ export const errorHandler = (
       statusCode,
       timestamp: new Date().toISOString(),
       path: req.path,
+      ...(isHttpError && error.details ? { details: error.details } : {}),
     },
   };
 
