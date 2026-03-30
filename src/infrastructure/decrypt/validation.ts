@@ -1,11 +1,11 @@
 import { z } from 'zod';
 import { validateOrThrow } from '../../shared/utils/validationHelper';
 
-export type DecryptType = 'drivers' | 'vehicle';
+type DecryptType = 'drivers' | 'vehicle';
 
 const decryptTypeSchema = z.enum(['drivers', 'vehicle']);
 
-export interface IBarcodeDataRequest {
+interface IBarcodeDataRequest {
   barcodeData: string;
 }
 

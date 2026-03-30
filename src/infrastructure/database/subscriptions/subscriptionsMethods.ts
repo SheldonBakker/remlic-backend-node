@@ -1,14 +1,13 @@
 import type {
   ISubscription,
   ISubscriptionWithPackage,
-  ICreateSubscriptionRequest,
   IUpdateSubscriptionRequest,
   ISubscriptionsFilters,
   IUserPermissions,
   ICreateSubscriptionFromPaystack,
 } from './types';
 import db from '../databaseClient';
-import { appSubscriptions, appPackages, appPermissions, profiles } from '../schema/index';
+import { appSubscriptions, appPackages, appPermissions } from '../schema/index';
 import { eq, or, lt, and, desc, lte, gte, inArray, type SQL } from 'drizzle-orm';
 import { HttpError } from '../../../shared/types/errors/appError';
 import { HTTP_STATUS } from '../../../shared/constants/httpStatus';
@@ -129,39 +128,6 @@ export async function getSubscriptionById(subscriptionId: string): Promise<ISubs
   return mapToSubWithPkg(result);
 }
 
-export async function getUserSubscriptions(
-  userId: string,
-  params: ICursorParams,
-): Promise<IPaginatedResult<ISubscriptionWithPackage>> {
-  const cursor = PaginationUtil.decodeCursor(params.cursor);
-
-  const conditions: SQL[] = [eq(appSubscriptions.profile_id, userId)];
-
-  if (cursor) {
-    const cursorCondition = or(
-      lt(appSubscriptions.created_at, new Date(cursor.created_at)),
-      and(eq(appSubscriptions.created_at, new Date(cursor.created_at)), lt(appSubscriptions.id, cursor.id)),
-    );
-    if (cursorCondition) {
-      conditions.push(cursorCondition);
-    }
-  }
-
-  const results = await db
-    .select()
-    .from(appSubscriptions)
-    .innerJoin(appPackages, eq(appSubscriptions.package_id, appPackages.id))
-    .innerJoin(appPermissions, eq(appPackages.permission_id, appPermissions.id))
-    .where(and(...conditions))
-    .orderBy(desc(appSubscriptions.created_at), desc(appSubscriptions.id))
-    .limit(params.limit);
-
-  const items = results.map((row) => mapToSubWithPkg(row));
-  const pagination = PaginationUtil.buildPagination(items, params.limit);
-
-  return { items, pagination };
-}
-
 export async function getUserPermissions(userId: string): Promise<IUserPermissions> {
   const results = await db
     .select()
@@ -191,48 +157,6 @@ export async function getUserPermissions(userId: string): Promise<IUserPermissio
   }
 
   return permissions;
-}
-
-export async function createSubscription(data: ICreateSubscriptionRequest): Promise<ISubscription> {
-  const profileExists = await db
-    .select({ id: profiles.id })
-    .from(profiles)
-    .where(eq(profiles.id, data.profile_id))
-    .then((rows) => rows.at(0));
-
-  if (!profileExists) {
-    Logger.warn(CONTEXT, `Profile not found for subscription creation (profile_id: ${data.profile_id})`);
-    throw new HttpError(HTTP_STATUS.BAD_REQUEST, 'Invalid profile ID');
-  }
-
-  const packageExists = await db
-    .select({ id: appPackages.id })
-    .from(appPackages)
-    .where(and(eq(appPackages.id, data.package_id), eq(appPackages.is_active, true)))
-    .then((rows) => rows.at(0));
-
-  if (!packageExists) {
-    Logger.warn(CONTEXT, `Package not found or inactive for subscription creation (package_id: ${data.package_id})`);
-    throw new HttpError(HTTP_STATUS.BAD_REQUEST, 'Invalid or inactive package ID');
-  }
-
-  const subscription = await db
-    .insert(appSubscriptions)
-    .values({
-      profile_id: data.profile_id,
-      package_id: data.package_id,
-      start_date: data.start_date,
-      end_date: data.end_date,
-      status: 'active',
-    })
-    .returning()
-    .then((rows) => rows.at(0));
-
-  if (!subscription) {
-    throw new HttpError(HTTP_STATUS.INTERNAL_SERVER_ERROR, 'Failed to create subscription');
-  }
-
-  return mapToSub(subscription);
 }
 
 async function getExistingSubscription(subscriptionId: string): Promise<ISubscription> {
@@ -428,10 +352,6 @@ export async function getUserActiveSubscription(userId: string): Promise<ISubscr
   }
 
   return mapToSubWithPkg(result);
-}
-
-export async function getProfileIdsWithValidSubscription(profileIds: string[]): Promise<Set<string>> {
-  return getProfileIdsBySubscriptionStatuses(profileIds, VALID_SUBSCRIPTION_STATUSES);
 }
 
 export async function getProfileIdsWithActiveSubscription(profileIds: string[]): Promise<Set<string>> {

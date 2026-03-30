@@ -1,6 +1,5 @@
 import 'dotenv/config';
 import express from 'express';
-import cors from 'cors';
 import compression from 'compression';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
@@ -19,43 +18,7 @@ import { registerSubscriptionExpiryJob } from './jobs/subscriptions/subscription
 
 const app = express();
 
-const getCorsOrigins = (): string[] => {
-  const isProduction = config.app.nodeEnv === 'production';
-  const origins = process.env.CORS_ORIGINS;
-
-  if (origins) {
-    const parsedOrigins = origins.split(',').map((origin) => origin.trim());
-    if (isProduction) {
-      return parsedOrigins.filter(
-        (origin) => !origin.includes('localhost') && !origin.includes('127.0.0.1'),
-      );
-    }
-    return parsedOrigins;
-  }
-
-  if (isProduction) {
-    return [
-      'https://vite-frontend-remlic.vercel.app',
-      'https://firearmstudio.com',
-      'https://www.firearmstudio.com',
-      'https://remlic.co.za',
-      'https://www.remlic.co.za',
-    ];
-  }
-
-  return ['http://localhost:5173', 'http://localhost:3000'];
-};
-
-const corsOptions = {
-  origin: getCorsOrigins(),
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
-};
-
 app.set('trust proxy', 1);
-
-app.use(cors(corsOptions));
 
 app.use(helmet());
 

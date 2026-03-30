@@ -77,20 +77,6 @@ export async function getPackageBySlug(slug: string): Promise<IPackageWithPermis
   return mapToPackageWithPermission(result);
 }
 
-export async function getByPaystackPlanCode(planCode: string): Promise<IPackageWithPermission> {
-  const result = await db.query.appPackages.findFirst({
-    where: and(eq(appPackages.paystack_plan_code, planCode), eq(appPackages.is_active, true)),
-    with: { appPermissions: true },
-  });
-
-  if (!result) {
-    Logger.warn(CONTEXT, `Package not found by Paystack plan code (planCode: ${planCode})`);
-    throw new HttpError(HTTP_STATUS.NOT_FOUND, 'Package not found');
-  }
-
-  return mapToPackageWithPermission(result);
-}
-
 export async function createPackage(data: ICreatePackageRequest): Promise<IPackage> {
   const permExists = await db
     .select({ id: appPermissions.id })

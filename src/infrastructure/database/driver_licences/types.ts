@@ -1,5 +1,3 @@
-import type { IPagination } from '../../../shared/types/apiResponse';
-
 export interface IDriverLicence {
   id: string;
   profile_id: string;
@@ -57,10 +55,5 @@ export interface IDriverLicenceFilters {
   id_number?: string;
   sort_by?: 'surname' | 'expiry_date' | 'created_at';
   sort_order?: 'asc' | 'desc';
-}
-
-export interface IDriverLicenceListResponse {
-  data: IDriverLicence[];
-  pagination: IPagination;
 }
 

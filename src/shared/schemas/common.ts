@@ -7,8 +7,8 @@ export const dateSchema = z.string()
     return !isNaN(parsed.getTime());
   }, 'Invalid date');
 
-export function createUuidSchema(entityName: string): z.ZodString {
-  return z.string().uuid(`Invalid ${entityName} ID format`);
+export function createUuidSchema(entityName: string): z.ZodUUID {
+  return z.uuid(`Invalid ${entityName} ID format`);
 }
 
 export const sortOrderSchema = z.enum(['asc', 'desc']);
@@ -19,7 +19,7 @@ export const stringBooleanSchema = z
 
 export function withAtLeastOneField<T extends z.ZodRawShape>(
   schema: z.ZodObject<T>,
-) {
+): z.ZodObject<T> {
   return schema.refine((data) => Object.keys(data).length > 0, {
     message: 'At least one field must be provided for update',
   });

@@ -7,7 +7,6 @@ import { requireUser } from '../../shared/utils/authHelpers';
 import { HttpError } from '../../shared/types/errors/appError';
 import {
   getSubscriptions,
-  getUserPermissions,
   updateSubscription,
   cancelSubscription as cancelSub,
 } from '../../infrastructure/database/subscriptions/subscriptionsMethods';
@@ -47,26 +46,6 @@ export const getMySubscriptions = async (req: AuthenticatedRequest, res: Respons
       : { status, profile_id: user.id };
     const { items, pagination } = await getSubscriptions(params, filters);
     ResponseUtil.success(res, { subscriptions: items }, HTTP_STATUS.OK, pagination);
-  } catch (error) {
-    next(error);
-  }
-};
-
-export const getMyPermissions = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
-  try {
-    const { id: userId } = requireUser(req);
-    const permissions = await getUserPermissions(userId);
-    ResponseUtil.success(res, { permissions }, HTTP_STATUS.OK);
-  } catch (error) {
-    next(error);
-  }
-};
-
-export const getCurrentSubscription = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
-  try {
-    const { id: userId } = requireUser(req);
-    const subscription = await SubscriptionUseCases.getCurrentSubscription(userId);
-    ResponseUtil.success(res, { subscription }, HTTP_STATUS.OK);
   } catch (error) {
     next(error);
   }
