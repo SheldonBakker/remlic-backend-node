@@ -21,7 +21,7 @@ export function validateOrThrow<O>(
 }
 
 export function validateIdOrThrow(
-  schema: z.ZodString,
+  schema: z.ZodType<string>,
   id: unknown,
   errorMessage: string,
 ): string {
