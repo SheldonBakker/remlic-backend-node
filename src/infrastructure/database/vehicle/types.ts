@@ -38,8 +38,8 @@ export interface IUpdateVehicleData extends IUpdateVehicleRequest {
   profile_id: string;
 }
 
-export type SortOrder = 'asc' | 'desc';
-export type VehicleSortField = 'year' | 'expiry_date';
+type SortOrder = 'asc' | 'desc';
+type VehicleSortField = 'year' | 'expiry_date';
 
 export interface IVehicleFilters {
   year?: number;

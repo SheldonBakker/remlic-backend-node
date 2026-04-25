@@ -1,5 +1,5 @@
-export type WebhookProvider = 'paystack';
-export type WebhookStatus = 'pending' | 'processing' | 'completed' | 'failed';
+ type WebhookProvider = 'paystack';
+type WebhookStatus = 'pending' | 'processing' | 'completed' | 'failed';
 
 export interface IWebhookEvent {
   id: string;

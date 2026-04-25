@@ -20,7 +20,7 @@ export interface IPaystackInitializeResponse {
   data: IPaystackTransactionData;
 }
 
-export interface IPaystackAuthorization {
+interface IPaystackAuthorization {
   authorization_code: string;
   bin: string;
   last4: string;
@@ -35,7 +35,7 @@ export interface IPaystackAuthorization {
   signature: string;
 }
 
-export interface IPaystackCustomer {
+interface IPaystackCustomer {
   id: number;
   email: string;
   customer_code: string;
@@ -45,7 +45,7 @@ export interface IPaystackCustomer {
   metadata: Record<string, unknown> | null;
 }
 
-export interface IPaystackPlan {
+interface IPaystackPlan {
   id: number;
   name: string;
   plan_code: string;
@@ -104,7 +104,7 @@ export interface IPaystackDisableSubscriptionResponse {
   message: string;
 }
 
-export type PaystackWebhookEvent =
+type PaystackWebhookEvent =
   | 'subscription.create'
   | 'subscription.disable'
   | 'subscription.not_renew'

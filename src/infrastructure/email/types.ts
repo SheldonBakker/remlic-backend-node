@@ -1,4 +1,4 @@
-export interface IKlaviyoProfile {
+interface IKlaviyoProfile {
   email: string;
   firstName?: string;
   lastName?: string;

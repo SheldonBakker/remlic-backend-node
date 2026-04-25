@@ -15,7 +15,7 @@ import { eq } from 'drizzle-orm';
 import { HttpError } from '../../../shared/types/errors/appError.js';
 import { HTTP_STATUS } from '../../../shared/constants/httpStatus.js';
 import Logger from '../../../shared/utils/logger.js';
-import { FreeTrialService } from '../../../useCase/freeTrialService.js';
+import { grantFreeTrial } from '../../../useCase/freeTrialService.js';
 
 const CONTEXT = 'AUTH_SERVICE';
 
@@ -68,7 +68,7 @@ export async function signup(data: ISignupRequest): Promise<ISignupResponse> {
     throw new HttpError(HTTP_STATUS.INTERNAL_SERVER_ERROR, 'User created but profile creation failed');
   }
 
-  await FreeTrialService.grantFreeTrial(authData.user.id);
+  await grantFreeTrial(authData.user.id);
 
   return {
     user: {
