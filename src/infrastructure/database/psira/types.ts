@@ -7,7 +7,7 @@ export interface IPsiraApiRequest {
   ProfileId: string;
 }
 
-export interface IPsiraApiResponseItem {
+interface IPsiraApiResponseItem {
   FirstName: string;
   LastName: string;
   Gender: string;
@@ -63,7 +63,7 @@ export interface ICreatePsiraOfficerRequest {
   ExpiryDate: string;
 }
 
-export type SortOrder = 'asc' | 'desc';
+type SortOrder = 'asc' | 'desc';
 
 export interface IPsiraFilters {
   id_number?: string;

@@ -38,7 +38,7 @@ export interface IUpdateFirearmData extends IUpdateFirearmRequest {
   profile_id: string;
 }
 
-export type SortOrder = 'asc' | 'desc';
+type SortOrder = 'asc' | 'desc';
 
 export interface IFirearmsFilters {
   serial_number?: string;

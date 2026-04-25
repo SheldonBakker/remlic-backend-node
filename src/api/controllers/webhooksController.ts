@@ -2,7 +2,7 @@ import type { Request, Response, NextFunction } from 'express';
 import { ResponseUtil } from '../../shared/utils/response';
 import { HTTP_STATUS } from '../../shared/constants/httpStatus';
 import { HttpError } from '../../shared/types/errors/appError';
-import { SubscriptionUseCases } from '../../useCase/subscriptionUseCases';
+import { handleWebhookEvent } from '../../useCase/subscriptionUseCases.js';
 import Logger from '../../shared/utils/logger';
 import { storeWebhookEvent, markProcessing, markCompleted, markFailed } from '../../infrastructure/database/webhooks/webhooksMethods';
 import { PaystackService } from '../../infrastructure/payment/paystackService';
@@ -54,7 +54,7 @@ export const handlePaystackWebhook = async (req: Request, res: Response, next: N
       void (async (): Promise<void> => {
         try {
           await markProcessing(webhook.id);
-          await SubscriptionUseCases.handleWebhookEvent(payload);
+          await handleWebhookEvent(payload);
           await markCompleted(webhook.id);
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : 'Unknown error';

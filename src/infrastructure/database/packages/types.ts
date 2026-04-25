@@ -1,6 +1,6 @@
 import type { IPermission } from '../permissions/types';
 
-export type PackageType = 'monthly' | 'yearly';
+type PackageType = 'monthly' | 'yearly';
 
 export interface IPackage {
   id: string;

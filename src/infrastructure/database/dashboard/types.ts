@@ -1,6 +1,6 @@
-export type RecordType = 'firearms' | 'vehicles' | 'psira_officers' | 'certificates';
+type RecordType = 'firearms' | 'vehicles' | 'psira_officers' | 'certificates';
 
-export type SortOrder = 'asc' | 'desc';
+type SortOrder = 'asc' | 'desc';
 
 export interface IDashboardExpiringRecord {
   id: string;

@@ -1,6 +1,6 @@
 import type { IPackageWithPermission } from '../packages/types';
 
-export type SubscriptionStatus = 'active' | 'expired' | 'cancelled' | 'refunded';
+type SubscriptionStatus = 'active' | 'expired' | 'cancelled' | 'refunded';
 
 export interface ISubscription {
   id: string;

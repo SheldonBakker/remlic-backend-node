@@ -35,7 +35,7 @@ export interface IUpdateCertificateData extends IUpdateCertificateRequest {
   profile_id: string;
 }
 
-export type SortOrder = 'asc' | 'desc';
+type SortOrder = 'asc' | 'desc';
 
 export interface ICertificatesFilters {
   certificate_number?: string;
